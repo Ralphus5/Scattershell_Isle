@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="8" height="8" tilewidth="64" tileheight="64" infinite="0" nextlayerid="6" nextobjectid="7">
+ <tileset firstgid="1" source="floor.tsx"/>
+ <tileset firstgid="65" source="objects.tsx"/>
+ <layer id="1" name="ground" width="8" height="8">
+  <data encoding="csv">
+44,44,44,44,44,44,44,44,
+44,44,44,44,44,44,44,44,
+44,44,45,51,51,52,44,44,
+44,44,53,58,58,35,44,44,
+44,44,53,58,58,35,44,44,
+44,44,36,37,37,43,44,44,
+44,44,44,44,44,44,44,44,
+44,44,44,44,44,44,44,44
+</data>
+ </layer>
+ <layer id="2" name="details" width="8" height="8">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,
+0,0,0,0,5,6,0,0,
+0,0,0,0,13,14,0,0,
+0,0,0,0,21,22,0,0,
+0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0
+</data>
+ </layer>
+ <layer id="3" name="collision_tiles" width="8" height="8" visible="0">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,
+0,18,18,18,18,18,18,0,
+0,18,0,0,0,0,18,0,
+0,18,0,0,0,0,18,0,
+0,18,0,0,0,0,18,0,
+0,18,0,0,0,0,18,0,
+0,18,18,18,18,18,18,0,
+0,0,0,0,0,0,0,0
+</data>
+ </layer>
+ <objectgroup id="5" name="objects">
+  <object id="4" name="cave" type="player" gid="69" x="168" y="347" width="52" height="56"/>
+ </objectgroup>
+ <objectgroup id="4" name="collision_shapes">
+  <object id="1" name="cave" type="zone" x="321" y="107" width="84" height="79" visible="0">
+   <properties>
+    <property name="shape" value="ellipse"/>
+   </properties>
+   <capsule/>
+  </object>
+ </objectgroup>
+</map>
