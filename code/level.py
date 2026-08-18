@@ -10,9 +10,7 @@ class Level:
 
     def create_map(self, map: str, player_pos: str) -> None:
         self.current_map = map
-        stop_music_stream(self.game.current_track)
-        self.game.current_track = self.game.music[self.current_map.strip('0123456789')]
-        play_music_stream(self.game.current_track)
+        self.game.audio_manager.play_music(self.current_map.strip('0123456789'))
         self.sprites = []
         self.collision_boxes = []
         self.zones = []
@@ -33,7 +31,7 @@ class Level:
                 match(obj.type):
                     case 'player':
                         if obj.name == player_pos:
-                            self.player.hitbox.x, self.player.hitbox.y = pos.x, pos.y
+                            self.player.set_position(Vector2(pos.x, pos.y))
                     case 'column':
                         tile = Tile(pos, self.game.graphics[obj.name], 0.5)
                         self.sprites.append(tile)
@@ -86,10 +84,9 @@ class Level:
         target_y = map_height / 2 if max_y < min_y else clamp(self.player.center.y, min_y, max_y)
 
         self.camera_target = Vector2(target_x,target_y)
+        self.camera.target = self.camera_target
 
     def run(self, dt: float) -> None:
-        update_play_time(self.game)
-
         # --- zone transition ---
         for zone in self.zones:
             collided = False
@@ -100,7 +97,7 @@ class Level:
                 collided = check_collision_circle_rec(zone.shape.center, zone.shape.radius, self.player.hitbox)
 
             if collided:
-                play_sound(self.game.sfx['transition'])
+                self.game.audio_manager.play_sfx('transition')
                 self.create_map(zone.name, zone.player_pos)
                 self.set_camera_boundaries()
                 return

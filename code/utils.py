@@ -37,79 +37,6 @@ def get_func_time(func: Callable) -> Callable:
     return wrapper
 
 # --- Game Essentials ---
-
-# input
-def check_dead_zone(axis: float) -> int:
-    if not abs(axis) > CONTROLLER_DEAD_ZONE:
-        return 0
-    if axis > 0:
-        return 1
-    else:
-        return -1
-
-def is_action_pressed(action: str) -> bool:
-    key = KEYBOARD_BINDINGS.get(action)
-    button = CONTROLLER_BINDINGS.get(action)
-
-    if key is not None and is_key_pressed(key):
-        return True
-    if button is not None and is_gamepad_available(0) and is_gamepad_button_pressed(0, button):
-        return True
-    return False
-
-def is_action_down(action: str) -> bool:
-    key = KEYBOARD_BINDINGS.get(action)
-    button = CONTROLLER_BINDINGS.get(action)
-
-    if key is not None and is_key_down(key):
-        return True
-    if button is not None and is_gamepad_available(0) and is_gamepad_button_down(0, button):
-        return True
-    return False
-
-# misc
-def inflate_rect(rect: Rectangle, width: float, height: float) -> Rectangle:
-    """Vergrößert/Verkleinert ein Rectangle zentriert (wie rect.inflate in Pygame)"""
-    return Rectangle(
-        rect.x - width / 2,
-        rect.y - height / 2,
-        rect.width + width,
-        rect.height + height)
-
-def import_image_folder(path: str) -> list[Texture]:
-    texture_list: list[Texture] = []
-    for _,__,image_files in os.walk(path):
-        for image in image_files:
-            full_path = join(path, image)
-            texture = load_texture(full_path)
-            texture_list.append(texture)
-    return texture_list
-
-@dataclass
-class Circle:
-    center: Vector2
-    radius: float
-
-    # Optional helper properties
-    @property
-    def x(self) -> float:
-        return self.center.x
-
-    @property
-    def y(self) -> float:
-        return self.center.y
-
-# time system
-def update_play_time(game: Game) -> None:
-    if game.state == 'play':
-        game.play_time = game.runtime - game.play_start - game.total_paused
-
-def pause_play_time(game: Game) -> None:
-    game.pause_start = game.runtime
-
-def resume_play_time(game: Game) -> None:
-    game.total_paused += game.runtime - game.pause_start
-
 class Timer:
     def __init__(self, game: Game, duration: float, use_play_time: bool = True, autostart: bool = False, repeat: bool = False, callback: Optional[Callable] = None):
         self.game = game
@@ -125,7 +52,7 @@ class Timer:
 
     @property
     def current_time(self) -> float:
-        return self.game.play_time if self.use_play_time else self.game.runtime
+        return self.game.time_manager.play_time if self.use_play_time else self.game.time_manager.runtime
 
     def activate(self) -> None:
         self.active = True
@@ -142,3 +69,33 @@ class Timer:
                 self.deactivate()
                 if self.repeat:
                     self.activate()
+
+@dataclass
+class Circle:
+    center: Vector2
+    radius: float
+
+    @property
+    def x(self) -> float:
+        return self.center.x
+
+    @property
+    def y(self) -> float:
+        return self.center.y
+
+def inflate_rect(rect: Rectangle, width: float, height: float) -> Rectangle:
+    """Vergrößert/Verkleinert ein Rectangle zentriert (wie rect.inflate in Pygame)"""
+    return Rectangle(
+        rect.x - width / 2,
+        rect.y - height / 2,
+        rect.width + width,
+        rect.height + height)
+
+def import_image_folder(path: str) -> list[Texture]:
+    texture_list: list[Texture] = []
+    for _,__,image_files in os.walk(path):
+        for image in image_files:
+            full_path = join(path, image)
+            texture = load_texture(full_path)
+            texture_list.append(texture)
+    return texture_list
