@@ -2,6 +2,7 @@ from pyray import * # type: ignore
 import pyray
 from pytmx import * # type: ignore
 from typing import * # type: ignore 
+from math import * # type: ignore
 import sys, os, json
 from os.path import join
 from dataclasses import dataclass

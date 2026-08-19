@@ -26,8 +26,9 @@ class Tile(Sprite):
         self.hitbox = Rectangle(self.pos.x, hitbox_y, self.texture.width, hitbox_h)
 
 class Zone():
-    def __init__(self, dimensons: Rectangle|Circle, name: str, player_pos: str, shape: str) -> None:
+    def __init__(self, dimensons: Rectangle|Circle, name: str, player_pos: str, shape_type: str) -> None:
         self.shape = dimensons
         self.name = name
         self.player_pos = player_pos
-        self.type = shape
+        self.shape_type = shape_type
+        

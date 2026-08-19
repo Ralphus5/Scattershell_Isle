@@ -99,3 +99,27 @@ def import_image_folder(path: str) -> list[Texture]:
             texture = load_texture(full_path)
             texture_list.append(texture)
     return texture_list
+
+def load_file(file: str, process: str = '') -> dict:
+    if os.path.exists(file):
+        try:
+            with open(file, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            msg = f"Failed to load {file}: {e}"
+            if process:
+                msg += f" -> {process} failed!"
+            print(msg)
+    return {}
+
+def save_file(file: str, data: dict, process: str = '') -> bool:
+    try:
+        with open(file, 'w') as f:
+            json.dump(data, f, indent=2)
+        return True
+    except (json.JSONDecodeError, OSError) as e:
+        msg = f"Failed to save {file}: {e}"
+        if process:
+            msg += f" -> {process} failed!"
+        print(msg)
+        return False

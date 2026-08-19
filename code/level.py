@@ -1,21 +1,21 @@
 from player import *
 
 class Level:
-    def __init__(self, game: Game) -> None:
+    def __init__(self, game: Game, map: str) -> None:
         self.game = game
-        self.player = Player(self.game, Vector2(0,0), cast(Texture,self.game.graphics['player']))
-        self.create_map('overworld', 'start')
+        self.player = Player(self.game, Vector2(0,0), self.game.player_images['down'])
+        self.create_map(map, self.game.last_saved_current_map)
         self.create_camera()
         self.set_camera_boundaries()
 
     def create_map(self, map: str, player_pos: str) -> None:
         self.current_map = map
-        self.game.audio_manager.play_music(self.current_map.strip('0123456789'))
-        self.sprites = []
-        self.collision_boxes = []
-        self.zones = []
+        self.game.audio_manager.play_music(self.current_map)
+        self.sprites: list[Sprite] = []
+        self.collision_boxes: list[Rectangle] = []
+        self.zones: list[Zone] = []
         self.sprites.append(self.player)
-        self.floor_image = self.game.graphics[self.current_map]
+        self.floor_image = self.game.level_images[self.current_map]
 
         # --- Collision tiles ---
         collision_layer = cast(TiledMap, self.game.maps[self.current_map].get_layer_by_name('collision_tiles'))
@@ -33,15 +33,15 @@ class Level:
                         if obj.name == player_pos:
                             self.player.set_position(Vector2(pos.x, pos.y))
                     case 'column':
-                        tile = Tile(pos, self.game.graphics[obj.name], 0.5)
+                        tile = Tile(pos, self.game.object_images[obj.name], 0.5)
                         self.sprites.append(tile)
                         self.collision_boxes.append(tile.hitbox)
                     case 'rock':
-                        tile = Tile(pos, self.game.graphics['rocks'][obj.rock_id])
+                        tile = Tile(pos, self.game.object_images['rocks'][obj.rock_id])
                         self.sprites.append(tile)
                         self.collision_boxes.append(tile.hitbox)
                     case 'grass':
-                        tile = Tile(pos, self.game.graphics['grass'][obj.grass_id])
+                        tile = Tile(pos, self.game.object_images['grass'][obj.grass_id])
                         self.sprites.append(tile)
                         self.collision_boxes.append(tile.hitbox)
             # collision boxes and zones
@@ -50,12 +50,12 @@ class Level:
                     case 'collision':
                         self.collision_boxes.append(Rectangle(pos.x,pos.y,obj.width,obj.height))
                     case 'zone':
-                        player_pos = self.current_map
+                        origin_map = self.current_map
                         if obj.properties['shape'] == 'rectangle':
                             shape = Rectangle(pos.x,pos.y,obj.width,obj.height)
                         elif obj.properties['shape'] == 'ellipse':
                             shape = Circle(Vector2(pos.x + obj.width/2, pos.y + obj.height/2), obj.width/2)
-                        self.zones.append(Zone(shape, obj.name, player_pos, obj.properties['shape']))
+                        self.zones.append(Zone(shape, obj.name, origin_map, obj.properties['shape']))
                    
     def create_camera(self) -> None:
         self.camera = Camera2D()
@@ -91,10 +91,11 @@ class Level:
         for zone in self.zones:
             collided = False
 
-            if zone.type == 'rectangle':
-                collided = check_collision_recs(self.player.hitbox, zone.shape)
-            elif zone.type == 'ellipse':
-                collided = check_collision_circle_rec(zone.shape.center, zone.shape.radius, self.player.hitbox)
+            if zone.shape_type == 'rectangle':
+                collided = check_collision_recs(self.player.hitbox, cast(Rectangle,zone.shape))
+            elif zone.shape_type == 'ellipse':
+                circle = cast(Circle, zone.shape)
+                collided = check_collision_circle_rec(circle.center, circle.radius, self.player.hitbox)
 
             if collided:
                 self.game.audio_manager.play_sfx('transition')
@@ -135,10 +136,11 @@ class Level:
         for collision_box in self.collision_boxes:
             draw_rectangle_lines_ex(collision_box, 3, RED)
         for zone in self.zones:
-            if zone.type == 'rectangle':
-                draw_rectangle_lines_ex(zone.shape, 3, PURPLE)
-            elif zone.type == 'ellipse':
-               draw_circle_lines_v(zone.shape.center, zone.shape.radius, PURPLE)
+            if zone.shape_type == 'rectangle':
+                draw_rectangle_lines_ex(cast(Rectangle,zone.shape), 3, PURPLE)
+            elif zone.shape_type == 'ellipse':
+                circle = cast(Circle, zone.shape)
+                draw_circle_lines_v(circle.center, circle.radius, PURPLE)
 
         end_mode_2d()
 

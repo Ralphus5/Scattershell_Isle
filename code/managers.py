@@ -9,27 +9,45 @@ class StateManager:
     def change_game_mode(self) -> None:
         if not self.requested_state or self.requested_state == self.state:
             return
+        # --- Change state ---
         old, new = self.state, self.requested_state
         self.requested_state = ''
         self.state = new
 
-        # --- title ---
+        # --- Drain input buffer after menu switching ---
+        self.game.input_manager.input_cooldown_timer.activate()
+
+        # --- TITLE ---
         if new == 'title':
             if old == 'boot':
                 self.game.audio_manager.play_music('title')
 
+        # --- PLAY ---
         elif new == 'play':
             if old == 'title':
-                self.level = Level(self.game)
+                self.level = Level(self.game, self.game.last_saved_current_map)
+                # set player position if saved
                 self.game.time_manager.play_start = get_time()
             elif old == 'pause':
                 self.game.time_manager.resume_play_time()
                 self.game.audio_manager.resume_music()
+            elif old == 'game_over':
+                self.game.time_manager.resume_play_time()
+                self.game.save_game_data()
+                self.game.load_save_data()
+                self.level = Level(self.game, self.game.last_saved_current_map)
+                self.game.audio_manager.play_music(self.level.current_map, True)
 
+        # --- PAUSE ---
         elif new == 'pause':
             if old == 'play':
                 self.game.time_manager.pause_play_time()
                 self.game.audio_manager.pause_music()
+
+        # --- GAME OVER ---
+        elif new == 'game_over':
+            self.game.audio_manager.pause_music()
+            self.game.time_manager.pause_play_time()
 
     def handle_game_mode(self, dt) -> None:
         if self.state == 'title':
@@ -38,64 +56,65 @@ class StateManager:
             self.level.run(dt)
         elif self.state == 'pause':
             self.game.pause_menu()
+        elif self.state == 'game_over':
+            self.game.game_over_screen()
 
 class InputManager:
     def __init__(self, game: Game) -> None:
         self.game = game
         set_exit_key(0)
+        self.input_cooldown_timer = Timer(self.game,INPUT_COOLDOWN_AFTER_SWITCHING_GAME_MODE, False, False,False)
         self.keyboard_bindings = dict(DEFAULT_KEYBOARD_BINDINGS)
         self.controller_bindings = dict(DEFAULT_CONTROLLER_BINDINGS)
 
     def get_general_input(self) -> None:
+        self.input_cooldown_timer.update()
         # --- universal input ---
         if self.pressed('fullscreen'):
             toggle_fullscreen()
             hide_cursor() if is_window_fullscreen() else show_cursor()
 
-        # --- title ---
+        # --- TITLE ---
         if self.game.state_manager.state == 'title':
-            if self.pressed('pause') or is_key_pressed(KEY_ENTER):
+            if self.pressed('pause') or self.pressed('confirm'):
                 self.game.state_manager.requested_state = 'play'
 
-        # --- play ---
+        # --- PLAY ---
         elif self.game.state_manager.state == 'play':
             if self.pressed('pause'):
                 self.game.state_manager.requested_state = 'pause'
 
-        # --- pause ---
+        # --- PAUSE ---
         elif self.game.state_manager.state == 'pause':
             if self.pressed('pause'):
                 self.game.state_manager.requested_state = 'play'
 
-    def load_user_bindings(self):
-        if not os.path.exists(self.game.SETTINGS_FILE):
-            return
+        # --- GAME OVER ---
+        elif self.game.state_manager.state == 'game_over':
+            if self.pressed('confirm'):
+                self.game.state_manager.requested_state = 'play'
 
-        try:
-            with open(self.game.SETTINGS_FILE, 'r') as f:
-                data = json.load(f)
-                if 'keyboard' in data['keybindings']:
-                    self.keyboard_bindings.update(data['keybindings']['keyboard'])
-                if 'controller' in data['keybindings']:
-                    self.controller_bindings.update(data['keybindings']['controller'])
-        except (json.JSONDecodeError, OSError):
-            print('Loading Keybindings failed!')
+    def load_user_bindings(self):
+        data = load_file(self.game.SETTINGS_FILE, "Loading keybindings")
+        if 'keybindings' in data:
+            if 'keyboard' in data['keybindings']:
+                self.keyboard_bindings.update(data['keybindings']['keyboard'])
+            if 'controller' in data['keybindings']:
+                self.controller_bindings.update(data['keybindings']['controller'])
 
     def save_user_bindings(self):
+        current_process = "Saving keybindings"
+        save_data = load_file(self.game.SETTINGS_FILE, current_process)
+
         current_kb = {k: v for k, v in self.keyboard_bindings.items() if k not in NON_REMAPPABLE_ACTIONS}
         current_ctrl = {k: v for k, v in self.controller_bindings.items() if k not in NON_REMAPPABLE_ACTIONS}
 
-        data = {'keybindings':
-                {
+        save_data['keybindings'] = {
                     'keyboard': current_kb,
                     'controller': current_ctrl
                 }
-                }
-        try:
-            with open(self.game.SETTINGS_FILE, 'w') as f:
-                json.dump(data, f, indent=2)
-        except (json.JSONDecodeError, OSError):
-            print('Saving keybindings failed!')
+
+        save_file(self.game.SETTINGS_FILE, save_data, current_process)
 
     def check_joystick_dead_zone(self, axis: float) -> int:
         if not abs(axis) > CONTROLLER_DEAD_ZONE:
@@ -121,6 +140,8 @@ class InputManager:
         return Vector2(direction_x, direction_y)
 
     def pressed(self, action: str) -> bool:
+        if self.input_cooldown_timer.active:
+            return False
         key = self.keyboard_bindings.get(action)
         button = self.controller_bindings.get(action)
 
@@ -169,16 +190,17 @@ class AudioManager:
         self.current_key: Optional[str] = None
         self.current_track: Music = self.game.music['title']
 
-    def play_music(self, key: str) -> None:
-        if self.current_key == key:
+    def play_music(self, key: str, restart: bool = False) -> None:
+        stripped_key = key.strip('0123456789')
+        if self.current_key == stripped_key and not restart:
             return  # Already playing this track!
 
         if self.current_track:
             stop_music_stream(self.current_track)
 
-        if key in self.game.music:
-            self.current_key = key
-            self.current_track = self.game.music[key]
+        if stripped_key in self.game.music:
+            self.current_key = stripped_key
+            self.current_track = self.game.music[stripped_key]
             play_music_stream(self.current_track)
 
     def pause_music(self) -> None:

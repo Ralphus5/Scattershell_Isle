@@ -9,15 +9,22 @@ SCREEN_HEIGHT: int = 720
 SCREEN_CENTER: tuple[int, int] = (SCREEN_WIDTH//2, SCREEN_HEIGHT//2)
 CAMERA_ZOOM: float = 1.0
 START_IN_FULLSCREEN: bool = False
+INPUT_COOLDOWN_AFTER_SWITCHING_GAME_MODE: float = 0.1
 
 # --- GAMEPLAY ---
 PLAYER_HITBOX_OFFSET: int = 15
-PLAYER_SPEED: int = 350
+PLAYER_SPEED: int = 250
+PLAYER_ATTACK_COOLDOWN: float = 0.25
 
 # --- GRAPHICS ---
 COLORS: dict[str, Color] = {
     'pause_menu_tint': Color(30,30,30,150),
 }
+
+TITLE_FONT_SIZE: int = 125
+TITLE_FONT_SPACING: int = 3
+
+PLAYER_ANIMATION_SPEED: float = 0.25 * PLAYER_SPEED/10
 
 # --- AUDIO ---
 # user volume settings
@@ -25,7 +32,7 @@ MASTER_VOLUME: Annotated[float, (0-1)] = 1
 
 MUSIC_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
     'title': 1.0,
-    'overworld': 1.0,
+    'start_area': 1.0,
     'cave': 1.0,
 }
 
@@ -34,13 +41,15 @@ SFX_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
 }
 
 # --- INPUT ---
-NON_REMAPPABLE_ACTIONS: Set[str] = {'toggle_fullscreen', 'pause'}
+NON_REMAPPABLE_ACTIONS: Set[str] = {'toggle_fullscreen', 'pause', 'confirm'}
 
 DEFAULT_KEYBOARD_BINDINGS: dict[str, int] = {
                             'move_left': KEY_A,
                             'move_right': KEY_D,
                             'move_up': KEY_W,
                             'move_down': KEY_S,
+                            'attack': KEY_ENTER,
+                            'confirm': KEY_ENTER,
                             'pause': KEY_ESCAPE,
                             'fullscreen': KEY_F11} # keyboard only
 
@@ -49,6 +58,8 @@ DEFAULT_CONTROLLER_BINDINGS: dict[str, int] = {
                             'move_right': GAMEPAD_BUTTON_LEFT_FACE_RIGHT,
                             'move_up': GAMEPAD_BUTTON_LEFT_FACE_UP,
                             'move_down': GAMEPAD_BUTTON_LEFT_FACE_DOWN,
+                            'attack': GAMEPAD_BUTTON_RIGHT_FACE_DOWN,
+                            'confirm': GAMEPAD_BUTTON_RIGHT_FACE_DOWN,
                             'pause': GAMEPAD_BUTTON_MIDDLE_RIGHT,
 }
 
