@@ -10,7 +10,7 @@ class Level:
 
     def create_map(self, map: str, player_pos: str) -> None:
         self.current_map = map
-        self.game.audio_manager.play_music(self.current_map)
+        self.game.play_music(self.current_map)
         self.sprites: list[Sprite] = []
         self.collision_boxes: list[Rectangle] = []
         self.zones: list[Zone] = []
@@ -33,7 +33,7 @@ class Level:
                         if obj.name == player_pos:
                             self.player.set_position(Vector2(pos.x, pos.y))
                     case 'column':
-                        tile = Tile(pos, self.game.object_images[obj.name], 0.5)
+                        tile = Tile(pos, self.game.object_images[obj.name], 0.45)
                         self.sprites.append(tile)
                         self.collision_boxes.append(tile.hitbox)
                     case 'rock':
@@ -44,6 +44,7 @@ class Level:
                         tile = Tile(pos, self.game.object_images['grass'][obj.grass_id])
                         self.sprites.append(tile)
                         self.collision_boxes.append(tile.hitbox)
+                        
             # collision boxes and zones
             elif not obj.visible:
                 match(obj.type):
@@ -98,7 +99,7 @@ class Level:
                 collided = check_collision_circle_rec(circle.center, circle.radius, self.player.hitbox)
 
             if collided:
-                self.game.audio_manager.play_sfx('transition')
+                self.game.play_sfx('transition')
                 self.create_map(zone.name, zone.player_pos)
                 self.set_camera_boundaries()
                 return
@@ -132,15 +133,22 @@ class Level:
             sprite.draw()
 
         # hitboxes
-        draw_rectangle_lines_ex(self.player.hitbox, 3, BLUE)
-        for collision_box in self.collision_boxes:
-            draw_rectangle_lines_ex(collision_box, 3, RED)
-        for zone in self.zones:
-            if zone.shape_type == 'rectangle':
-                draw_rectangle_lines_ex(cast(Rectangle,zone.shape), 3, PURPLE)
-            elif zone.shape_type == 'ellipse':
-                circle = cast(Circle, zone.shape)
-                draw_circle_lines_v(circle.center, circle.radius, PURPLE)
+        # boxes that are only in self.collison_boxes are green
+        # boxes that are from visible sprites AND in self.collision_boxes are blue
+        # boxes that are only hitboxes from sprites but not in self.collision_boxes are red
+        # transition zones are purple
+        #for collision_box in self.collision_boxes:
+        #    draw_rectangle_lines_ex(collision_box, 3, GREEN)        
+        #for sprite in self.sprites:
+        #    color = BLUE if sprite.hitbox in self.collision_boxes else RED
+        #    if sprite.hitbox:
+        #        draw_rectangle_lines_ex(sprite.hitbox, 3, color)
+        #for zone in self.zones:
+        #    if zone.shape_type == 'rectangle':
+        #        draw_rectangle_lines_ex(cast(Rectangle,zone.shape), 3, PURPLE)
+        #    elif zone.shape_type == 'ellipse':
+        #        circle = cast(Circle, zone.shape)
+        #        draw_circle_lines_v(circle.center, circle.radius, PURPLE)
 
         end_mode_2d()
 

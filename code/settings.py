@@ -12,18 +12,24 @@ START_IN_FULLSCREEN: bool = False
 INPUT_COOLDOWN_AFTER_SWITCHING_GAME_MODE: float = 0.1
 
 # --- GAMEPLAY ---
-PLAYER_HITBOX_OFFSET: int = 15
+PLAYER_HITBOX_OFFSET_VERTICAL: int = 15
+PLAYER_HITBOX_OFFSET_HORIZONTAL: int = 3
 PLAYER_SPEED: int = 250
 PLAYER_ATTACK_COOLDOWN: float = 0.25
 
 # --- GRAPHICS ---
 COLORS: dict[str, Color] = {
+    'title_text': Color(10,70,255,255),
+    'title_text_shadow': WHITE,
     'pause_menu_tint': Color(30,30,30,150),
 }
+ # fonts
+TITLE_FONT_SPACING: int = 0
+REGULAR_FONT_SPACING: int = 1
+TITLE_FONT_SIZE: int = 105
+REGULAR_FONT_SIZE: int = 30
 
-TITLE_FONT_SIZE: int = 125
-TITLE_FONT_SPACING: int = 3
-
+# animations
 PLAYER_ANIMATION_SPEED: float = 0.25 * PLAYER_SPEED/10
 
 # --- AUDIO ---
@@ -38,6 +44,7 @@ MUSIC_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
 
 SFX_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
     'transition': 1.0,
+    'sword': 1.0,
 }
 
 # --- INPUT ---

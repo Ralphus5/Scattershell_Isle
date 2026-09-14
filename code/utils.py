@@ -5,12 +5,15 @@ from settings import *
 def debug(game: Game, font: Font, info, pos_x: int = 10, pos_y: int = 10) -> None:
     """Draws a variable as text on the virtual screen"""
     info_text = str(info)
-    font_size = 40
-    width = measure_text(info_text, font_size)
-    rectangle = Rectangle(pos_x - 10,pos_y - 10, width, font_size + 20)
+    font_size = 30
+    
+    # Measure dimensions using the custom Raylib font
+    text_size = measure_text_ex(font, info_text, font_size, 1)
+    rectangle = Rectangle(pos_x - 10, pos_y - 10, text_size.x + 20, font_size + 20)
+    
     begin_texture_mode(game.virtual_screen)
     draw_rectangle_rec(rectangle, BLACK)
-    draw_text_ex(font, info_text, Vector2(pos_x,pos_y), font_size, 1, WHITE)
+    draw_text_ex(font, info_text, Vector2(pos_x, pos_y), font_size, REGULAR_FONT_SPACING, WHITE)
     end_texture_mode()
 
 def draw_grid_2d(width: int, height: int, cell_size: int, color: Color = LIGHTGRAY):
@@ -52,7 +55,7 @@ class Timer:
 
     @property
     def current_time(self) -> float:
-        return self.game.time_manager.play_time if self.use_play_time else self.game.time_manager.runtime
+        return self.game.play_time if self.use_play_time else self.game.runtime
 
     def activate(self) -> None:
         self.active = True

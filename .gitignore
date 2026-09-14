@@ -1,5 +1,6 @@
 # --- Python cache & build files ---
 __pycache__/
+tempCodeRunnerFile.py
 *.py[cod]
 *.pyo
 *.pyd

@@ -17,7 +17,7 @@
   <image source="../../graphics/objects/column.png" width="64" height="128"/>
  </tile>
  <tile id="4" type="player">
-  <image source="../../graphics/entities/player/player.png" width="52" height="56"/>
+  <image source="../../graphics/entities/player/down/down_0.png" width="64" height="64"/>
  </tile>
  <tile id="5" type="grass">
   <properties>
