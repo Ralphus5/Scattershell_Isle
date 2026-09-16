@@ -3,7 +3,7 @@ from player import *
 class Level:
     def __init__(self, game: Game, map: str) -> None:
         self.game = game
-        self.player = Player(self.game, Vector2(0,0), self.game.player_images['down'])
+        self.player = Player(self.game, Vector2(0,0), self.game.entity_images['player']['down'])
         self.create_map(map, self.game.last_saved_current_map)
         self.create_camera()
         self.set_camera_boundaries()
@@ -14,13 +14,12 @@ class Level:
         self.sprites: list[Sprite] = []
         self.collision_boxes: list[Rectangle] = []
         self.zones: list[Zone] = []
-        self.sprites.append(self.player)
         self.floor_image = self.game.level_images[self.current_map]
 
         # --- Collision tiles ---
         collision_layer = cast(TiledMap, self.game.maps[self.current_map].get_layer_by_name('collision_tiles'))
         for x,y,_ in collision_layer.tiles():
-                self.collision_boxes.append(Rectangle(x * TILE_SIZE,y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+                self.collision_boxes.append(Rectangle(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
         # --- Objects ---
         for obj in self.game.maps[self.current_map].objects:
@@ -28,35 +27,29 @@ class Level:
 
             # visible tiles
             if obj.visible:
+                sprite_to_add = None
                 match(obj.type):
                     case 'player':
                         if obj.name == player_pos:
+                            sprite_to_add = self.player
                             self.player.set_position(Vector2(pos.x, pos.y))
-                    case 'column':
-                        tile = Tile(pos, self.game.object_images[obj.name], 0.45)
-                        self.sprites.append(tile)
-                        self.collision_boxes.append(tile.hitbox)
-                    case 'rock':
-                        tile = Tile(pos, self.game.object_images['rocks'][obj.rock_id])
-                        self.sprites.append(tile)
-                        self.collision_boxes.append(tile.hitbox)
-                    case 'grass':
-                        tile = Tile(pos, self.game.object_images['grass'][obj.grass_id])
-                        self.sprites.append(tile)
-                        self.collision_boxes.append(tile.hitbox)
+                    case 'enemy':
+                        sprite_to_add = Enemy(self.game, obj.name, pos, self.game.entity_images[obj.name]['idle'])
+                    case 'tile':
+                        sprite_to_add = Tile(self.game, obj.name, pos, self.game.tile_images[obj.name][obj.properties['version']])
+                        self.collision_boxes.append(sprite_to_add.hitbox)
+                    case _:
+                        print(obj) # DEBUGGING
+                if sprite_to_add: self.sprites.append(sprite_to_add)
                         
             # collision boxes and zones
             elif not obj.visible:
                 match(obj.type):
                     case 'collision':
-                        self.collision_boxes.append(Rectangle(pos.x,pos.y,obj.width,obj.height))
+                        self.collision_boxes.append(Rectangle(pos.x, pos.y, obj.width, obj.height))
                     case 'zone':
                         origin_map = self.current_map
-                        if obj.properties['shape'] == 'rectangle':
-                            shape = Rectangle(pos.x,pos.y,obj.width,obj.height)
-                        elif obj.properties['shape'] == 'ellipse':
-                            shape = Circle(Vector2(pos.x + obj.width/2, pos.y + obj.height/2), obj.width/2)
-                        self.zones.append(Zone(shape, obj.name, origin_map, obj.properties['shape']))
+                        self.zones.append(Zone(obj.name, obj.properties['shape'], origin_map, pos, obj.width, obj.height))
                    
     def create_camera(self) -> None:
         self.camera = Camera2D()
@@ -90,20 +83,43 @@ class Level:
     def run(self, dt: float) -> None:
         # --- zone transition ---
         for zone in self.zones:
-            collided = False
+            player_hit_zone = False
+            if isinstance(zone.shape, type(Rectangle())):
+                player_hit_zone = check_collision_recs(self.player.hitbox, zone.shape)
+            elif isinstance(zone.shape, Circle):
+                player_hit_zone = check_collision_circle_rec(zone.shape.center, zone.shape.radius, self.player.hitbox)
 
-            if zone.shape_type == 'rectangle':
-                collided = check_collision_recs(self.player.hitbox, cast(Rectangle,zone.shape))
-            elif zone.shape_type == 'ellipse':
-                circle = cast(Circle, zone.shape)
-                collided = check_collision_circle_rec(circle.center, circle.radius, self.player.hitbox)
-
-            if collided:
+            if player_hit_zone:
                 self.game.play_sfx('transition')
-                self.create_map(zone.name, zone.player_pos)
+                self.create_map(zone.obj_name, zone.player_pos)
                 self.set_camera_boundaries()
                 return
 
+        # --- hurt collisions ---
+        for sprite in self.sprites:
+            # enemy collides with...
+            if isinstance(sprite, Enemy):
+                enemy_hit_player = check_collision_recs(sprite.hitbox, self.player.hitbox)
+                if enemy_hit_player and not self.player.hurt_timer.active:
+                    self.game.play_sfx('player_hurt', PITCH_VARIATION_PLAYER_HURT)
+                    self.player.hurt(sprite.damage, vector2_negate(vector2_normalize(sprite.get_player_distance_direction()[1])))
+                if self.player.sword:
+                    enemy_hit_sword = check_collision_recs(sprite.hitbox, self.player.sword.hitbox)
+                    if enemy_hit_sword and not sprite.hurt_timer.active:
+                        self.game.play_sfx('enemy_hurt', PITCH_VARIATION_ENEMY_HURT)
+                        sprite.hurt(self.player.damage, vector2_normalize(sprite.get_player_distance_direction()[1]))
+
+
+            # tile collides with...
+            elif isinstance(sprite, Tile):
+                if sprite.obj_name == 'grass':
+                    if self.player.sword:
+                        tile_hit_sword = check_collision_recs(sprite.hitbox, self.player.sword.hitbox)
+                        if tile_hit_sword:
+                            self.game.play_sfx('grass_cut', PITCH_VARIATION_GRASS_CUT)
+                            self.sprites.remove(sprite)
+                            self.collision_boxes.remove(sprite.hitbox)
+        
         # --- updating ---
         self.update_sprites(dt)
         self.set_camera_boundaries()
@@ -137,18 +153,19 @@ class Level:
         # boxes that are from visible sprites AND in self.collision_boxes are blue
         # boxes that are only hitboxes from sprites but not in self.collision_boxes are red
         # transition zones are purple
-        #for collision_box in self.collision_boxes:
-        #    draw_rectangle_lines_ex(collision_box, 3, GREEN)        
-        #for sprite in self.sprites:
-        #    color = BLUE if sprite.hitbox in self.collision_boxes else RED
-        #    if sprite.hitbox:
-        #        draw_rectangle_lines_ex(sprite.hitbox, 3, color)
-        #for zone in self.zones:
-        #    if zone.shape_type == 'rectangle':
-        #        draw_rectangle_lines_ex(cast(Rectangle,zone.shape), 3, PURPLE)
-        #    elif zone.shape_type == 'ellipse':
-        #        circle = cast(Circle, zone.shape)
-        #        draw_circle_lines_v(circle.center, circle.radius, PURPLE)
+
+        for collision_box in self.collision_boxes:
+            draw_rectangle_lines_ex(collision_box, 3, GREEN)        
+        for sprite in self.sprites:
+            color = BLUE if sprite.hitbox in self.collision_boxes else RED
+            if sprite.hitbox:
+                draw_rectangle_lines_ex(sprite.hitbox, 3, color)
+        for zone in self.zones:
+            if zone.shape_name == 'rectangle':
+                draw_rectangle_lines_ex(cast(Rectangle,zone.shape), 3, PURPLE)
+            elif zone.shape_name == 'ellipse':
+                circle = cast(Circle, zone.shape)
+                draw_circle_lines_v(circle.center, circle.radius, PURPLE)
 
         end_mode_2d()
 

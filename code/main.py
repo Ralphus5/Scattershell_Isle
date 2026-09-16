@@ -26,6 +26,7 @@ class Game:
                 debug(self, self.fonts['regular'], f"Player State: {self.level.player.animation_state}")  # DEBUGGING
                 debug(self, self.fonts['regular'], f"Player attacking: {self.level.player.attacking}", 10, 100)  # DEBUGGING
                 debug(self, self.fonts['regular'], f"Sprites : {len(self.level.sprites)}", 10, 200)  # DEBUGGING
+                debug(self, self.fonts['regular'], f"Health : {self.level.player.health}", SCREEN_WIDTH - 200, 100)  # DEBUGGING
             self.draw_virtual_screen()
 
     def change_game_mode(self) -> None:
@@ -178,21 +179,6 @@ class Game:
         self.SETTINGS_FILE = join(saves_dir, 'settings.json')
 
     def import_graphics(self) -> None:
-        self.player_images: dict[str, list[Texture]] = {
-            'down': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'down')),
-            'down_attack': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'down_attack')),
-            'down_idle': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'down_idle')),
-            'up': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'up')),
-            'up_attack': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'up_attack')),
-            'up_idle': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'up_idle')),
-            'right': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'right')),
-            'right_attack': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'right_attack')),
-            'right_idle': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'right_idle')),
-            'left': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'left')),
-            'left_attack': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'left_attack')),
-            'left_idle': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'left_idle')),
-        }
-
         self.sword_images: dict[str, Texture] = {
             'down': load_texture(join(self.GRAPHICS_DIR, 'sword', 'down.png')),
             'up': load_texture(join(self.GRAPHICS_DIR, 'sword', 'up.png')),
@@ -209,20 +195,26 @@ class Game:
             'title': load_texture(join(self.GRAPHICS_DIR, 'ui', 'title_background.png')),
         }
 
-        self.level_images: dict[str, Image | Texture | list[Texture]] = {            
+        self.level_images: dict[str, Image | Texture | list[Texture]] = {
             'start_area': load_texture(join(self.GRAPHICS_DIR, 'levels', 'start_area.png')),
             'cave': load_texture(join(self.GRAPHICS_DIR, 'levels', 'cave.png')),
             'cave2': load_texture(join(self.GRAPHICS_DIR, 'levels', 'cave2.png')),
             }
 
-        self.object_images: dict[str, Image | Texture | list[Texture]] = {
-            'column': load_texture(join(self.GRAPHICS_DIR, 'objects', 'column.png')),
-            'rocks': import_image_folder(join(self.GRAPHICS_DIR, 'objects', 'rocks')),
-            'grass': import_image_folder(join(self.GRAPHICS_DIR, 'objects', 'grass')),
+        self.tile_images: dict[str, list[Texture]] = {
+            'column': import_image_folder(join(self.GRAPHICS_DIR, 'tiles', 'column')),
+            'rock': import_image_folder(join(self.GRAPHICS_DIR, 'tiles', 'rock')),
+            'grass': import_image_folder(join(self.GRAPHICS_DIR, 'tiles', 'grass')),
             }
 
-        self.entity_image: dict[str, Image | Texture | list[Texture]] = {
-
+        self.entity_images: dict[str, dict[str, list[Texture]]] = {
+            'player': {f'{direction}{suffix}': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', f'{direction}{suffix}'))
+                for direction in ['down', 'right', 'left', 'up']
+                for suffix in ['', '_attack', '_idle']},
+            'bamboo': {f'{state}': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'monsters', 'bamboo', f'{state}')) for state in ['move', 'idle', 'attack']},
+            'spirit': {f'{state}': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'monsters', 'spirit', f'{state}')) for state in ['move', 'idle', 'attack']},
+            'squid': {f'{state}': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'monsters', 'squid', f'{state}')) for state in ['move', 'idle', 'attack']},
+            'raccoon': {f'{state}': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'monsters', 'raccoon', f'{state}')) for state in ['move', 'idle', 'attack']},
         }
 
         self.fonts: dict[str, Font] = {
@@ -242,6 +234,9 @@ class Game:
         self.sfx: dict[str, Sound] = {
             'transition': load_sound(join(self.SFX_DIR, 'transition.wav')),
             'sword': load_sound(join(self.SFX_DIR, 'sword.wav')),
+            'grass_cut': load_sound(join(self.SFX_DIR, 'grass_cut.wav')),
+            'enemy_hurt': load_sound(join(self.SFX_DIR, 'enemy_hurt.wav')),
+            'player_hurt': load_sound(join(self.SFX_DIR, 'player_hurt.wav')),
         }
 
     def import_world_data(self) -> None:

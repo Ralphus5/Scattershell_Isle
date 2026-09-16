@@ -12,10 +12,27 @@ START_IN_FULLSCREEN: bool = False
 INPUT_COOLDOWN_AFTER_SWITCHING_GAME_MODE: float = 0.1
 
 # --- GAMEPLAY ---
-PLAYER_HITBOX_OFFSET_VERTICAL: int = 15
-PLAYER_HITBOX_OFFSET_HORIZONTAL: int = 3
-PLAYER_SPEED: int = 250
-PLAYER_ATTACK_COOLDOWN: float = 0.25
+ENTITY_DATA: dict[str, dict[str, int|float]] = {
+    'player': {'health': 100, 'speed': 230, 'damage': 15, 'attack_cooldown': 0.25, 'knockback': 4, 'hitbox_offset_v': 15, 'hitbox_offset_h': 3},
+    'bamboo': {'health': 50, 'speed': 120, 'damage': 20, 'attack_cooldown': 0.3, 'knockback': 5, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'notice_radius': 300, 'attack_radius': 80},
+    'spirit': {'health': 50, 'speed': 130, 'damage': 20, 'attack_cooldown': 0.2, 'knockback': 5, 'hitbox_offset_v': 7, 'hitbox_offset_h': 8, 'notice_radius': 300, 'attack_radius': 80},
+    'squid': {'health': 50, 'speed': 120, 'damage': 20, 'attack_cooldown': 0.4, 'knockback': 5, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'notice_radius': 300, 'attack_radius': 80},
+    'raccoon': {'health': 50, 'speed': 120, 'damage': 20, 'attack_cooldown': 0.5, 'knockback': 1, 'hitbox_offset_v': 60, 'hitbox_offset_h': 50, 'notice_radius': 500, 'attack_radius': 160},
+}
+
+# animations
+HURT_TIMES: dict[str, float] = {
+    'Player': 1.2,
+    'Enemy': ENTITY_DATA['player']['attack_cooldown']
+}
+
+KNOCKBACK_TIMES: dict[str, float] = {
+    'Player': 0.05,
+    'Enemy': 0.2
+}
+
+PLAYER_ANIMATION_SPEED: float = 0.025
+ENEMY_ANIMATION_SPEED: float = 0.05
 
 # --- GRAPHICS ---
 COLORS: dict[str, Color] = {
@@ -29,8 +46,6 @@ REGULAR_FONT_SPACING: int = 1
 TITLE_FONT_SIZE: int = 105
 REGULAR_FONT_SIZE: int = 30
 
-# animations
-PLAYER_ANIMATION_SPEED: float = 0.25 * PLAYER_SPEED/10
 
 # --- AUDIO ---
 # user volume settings
@@ -45,7 +60,15 @@ MUSIC_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
 SFX_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
     'transition': 1.0,
     'sword': 1.0,
+    'grass_cut': 1.0,
+    'enemy_hurt': 1.0,
 }
+
+# pitch variations
+PITCH_VARIATION_SWORD: float = 0.2
+PITCH_VARIATION_ENEMY_HURT: float = 0.2
+PITCH_VARIATION_PLAYER_HURT: float = 0.2
+PITCH_VARIATION_GRASS_CUT: float = 0.2
 
 # --- INPUT ---
 NON_REMAPPABLE_ACTIONS: Set[str] = {'toggle_fullscreen', 'pause', 'confirm'}
