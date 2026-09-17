@@ -8,9 +8,10 @@ class Game:
         self.import_audio()
         self.import_world_data()
         self.init_state()
+        self.init_main_menu_texts()
         self.load_settings()
         self.load_save_data()
-        set_window_icon(cast(Image, self.ui_images['icon']))
+        set_window_icon(self.icon)
 
 # --- GAME LOOP ---
     def run(self) -> None:
@@ -21,13 +22,81 @@ class Game:
             if self.current_track: update_music_stream(self.current_track)
             self.update_play_time()
             self.handle_game_mode(dt)
-            debug(self, self.fonts['regular'], f"Play time: {self.play_time:.2f} | Total time: {self.runtime:.2f}", SCREEN_WIDTH - 400)  # DEBUGGING
-            if hasattr(self, 'level'): 
-                debug(self, self.fonts['regular'], f"Player State: {self.level.player.animation_state}")  # DEBUGGING
-                debug(self, self.fonts['regular'], f"Player attacking: {self.level.player.attacking}", 10, 100)  # DEBUGGING
-                debug(self, self.fonts['regular'], f"Sprites : {len(self.level.sprites)}", 10, 200)  # DEBUGGING
-                debug(self, self.fonts['regular'], f"Health : {self.level.player.health}", SCREEN_WIDTH - 200, 100)  # DEBUGGING
+            #debug(self, self.fonts['debugging'], f"Play time: {self.play_time:.2f} | Total time: {self.runtime:.2f}")  # DEBUGGING
+            #if hasattr(self, 'level'): 
+                #debug(self, self.fonts['debugging'], f"Sprites : {len(self.level.sprites)}", 10, 65)  # DEBUGGING
+                #debug(self, self.fonts['debugging'], f"Health : {self.level.player.health}", 10, 120)  # DEBUGGING
             self.draw_virtual_screen()
+
+    def get_general_input(self) -> None:
+        self.input_cooldown_timer.update()
+        # --- Universal Input ---
+        if self.input_pressed('fullscreen'):
+            toggle_fullscreen()
+            hide_cursor() if is_window_fullscreen() else show_cursor()
+
+        # --- TITLE ---
+        if self.state == 'title':
+            if self.input_pressed('pause') or self.input_pressed('confirm'):
+                self.requested_state = 'play'
+
+        # --- PLAY ---
+        elif self.state == 'play':
+            # enter pause state
+            if self.input_pressed('open_map') or self.input_pressed('open_inventory'):
+                self.play_sfx('pause_menu_opened')
+                self.requested_state = 'pause'
+                self.current_menu_tab_id = 1 if self.input_pressed('open_map') else 2
+                self.current_menu_tab = MenuTab(self, self.main_menu_tab_names[self.current_menu_tab_id])
+
+        # --- PAUSE ---
+        elif self.state == 'pause':
+
+            # --- Main Tabs ---
+            # unpause
+            if self.current_menu_tab.menu_name in self.main_menu_tab_names:
+                if self.input_pressed('open_inventory') or self.input_pressed('open_map'):
+                    self.requested_state = 'play'
+
+                # switch tab
+                elif self.input_pressed('switch_menu_tab_right'):
+                    self.current_menu_tab_id = (self.current_menu_tab_id + 1) % len(self.main_menu_tab_names)
+                    self.current_menu_tab = MenuTab(self, self.main_menu_tab_names[self.current_menu_tab_id])
+                    self.play_sfx('menu_button_pressed')
+                elif self.input_pressed('switch_menu_tab_left'):
+                    self.current_menu_tab_id = (3 if self.current_menu_tab_id - 1 == 0 else self.current_menu_tab_id - 1) % len(self.main_menu_tab_names)
+                    self.current_menu_tab = MenuTab(self, self.main_menu_tab_names[self.current_menu_tab_id])
+                    self.play_sfx('menu_button_pressed')
+
+                # settings tab
+                elif self.current_menu_tab and self.current_menu_tab.clickable_entities:
+                    num_items = len(self.current_menu_tab.clickable_entities)
+
+                    if self.input_pressed('menu_move_up') or self.input_pressed('move_up'):
+                        if self.current_menu_tab.hover_id == -1:
+                            self.current_menu_tab.hover_id = num_items - 1  # Select last item
+                        else:
+                            self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 1) % num_items
+
+                    elif self.input_pressed('menu_move_down') or self.input_pressed('move_down'):
+                        if self.current_menu_tab.hover_id == -1:
+                            self.current_menu_tab.hover_id = 0  # Select first item
+                        else:
+                            self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id + 1) % num_items
+
+                    if self.current_menu_tab.menu_name == 'Settings':
+                        if self.input_pressed('confirm'):
+                            for entity in self.current_menu_tab.clickable_entities:
+                                entity.clicked = entity.hovered
+            # --- Sub Tabs ---
+            else:
+                if self.input_pressed('open_inventory') or self.input_pressed('open_map'):
+                    self.current_menu_tab = MenuTab(self, self.main_menu_tab_names[self.current_menu_tab_id])
+
+        # --- GAME OVER ---
+        elif self.state == 'game_over':
+            if self.input_pressed('confirm'):
+                self.requested_state = 'play'
 
     def change_game_mode(self) -> None:
         if not self.requested_state or self.requested_state == self.state:
@@ -52,8 +121,9 @@ class Game:
                 # set player position if saved
                 self.play_start = get_time()
             elif old == 'pause':
+                self.current_menu_tab_id = 0
                 self.resume_play_time()
-                self.resume_music()
+                set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * MASTER_VOLUME)
             elif old == 'game_over':
                 self.resume_play_time()
                 self.save_game_data()
@@ -65,7 +135,7 @@ class Game:
         elif new == 'pause':
             if old == 'play':
                 self.pause_play_time()
-                self.pause_music()
+                set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * MASTER_VOLUME * MUSIC_PAUSE_DIM_FACTOR)
 
         # --- GAME OVER ---
         elif new == 'game_over':
@@ -78,7 +148,7 @@ class Game:
         elif self.state == 'play':
             self.level.run(dt)
         elif self.state == 'pause':
-            self.pause_menu()
+            self.pause_menu(dt)
         elif self.state == 'game_over':
             self.game_over_screen()
 
@@ -86,22 +156,26 @@ class Game:
         begin_texture_mode(self.virtual_screen)
         clear_background(BLACK)
         draw_texture(self.background_images['title'], 0, 0, WHITE)
-        title_size = measure_text_ex(self.fonts['title'], GAME_NAME, TITLE_FONT_SIZE, TITLE_FONT_SPACING)
-        height_animation = 5 * sin(self.runtime*3)
-        draw_text_ex(self.fonts['title'], GAME_NAME, Vector2(SCREEN_CENTER[0]-title_size.x/2,SCREEN_CENTER[1]+5+height_animation-title_size.y/2), TITLE_FONT_SIZE, TITLE_FONT_SPACING, COLORS['title_text_shadow'])
-        draw_text_ex(self.fonts['title'], GAME_NAME, Vector2(SCREEN_CENTER[0]-title_size.x/2,SCREEN_CENTER[1]+height_animation-title_size.y/2), TITLE_FONT_SIZE, TITLE_FONT_SPACING, COLORS['title_text'])
+        self.title_text.draw()
         end_texture_mode()
 
-    def pause_menu(self) -> None:
+    def pause_menu(self, dt: float) -> None:
         begin_texture_mode(self.virtual_screen)
         clear_background(BLACK)
         self.level.draw_sprites()
-        draw_rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLORS['pause_menu_tint'])
+        draw_rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLORS['pause_menu_background'])            
+
+        if self.current_menu_tab: 
+            self.current_menu_tab.update(dt)
+
         end_texture_mode()
 
     def game_over_screen(self) -> None:
         begin_texture_mode(self.virtual_screen)
         clear_background(BLACK)
+
+        self.game_over_text.draw()
+
         end_texture_mode()
 
     def draw_virtual_screen(self) -> None:
@@ -179,16 +253,18 @@ class Game:
         self.SETTINGS_FILE = join(saves_dir, 'settings.json')
 
     def import_graphics(self) -> None:
+        self.icon: Image = load_image(join(self.GRAPHICS_DIR, 'ui', 'icon.png'))
+
         self.sword_images: dict[str, Texture] = {
             'down': load_texture(join(self.GRAPHICS_DIR, 'sword', 'down.png')),
             'up': load_texture(join(self.GRAPHICS_DIR, 'sword', 'up.png')),
             'right': load_texture(join(self.GRAPHICS_DIR, 'sword', 'right.png')),
             'left': load_texture(join(self.GRAPHICS_DIR, 'sword', 'left.png')),
         }
-        
-        self.ui_images: dict[str, Image|Texture] = {
-            'icon': load_image(join(self.GRAPHICS_DIR, 'ui', 'icon.png')),  
-            'sword': load_texture(join(self.GRAPHICS_DIR, 'sword', 'full.png')),  
+
+        self.ui_images: dict[str, Texture] = { 
+            'sword': load_texture(join(self.GRAPHICS_DIR, 'sword', 'full.png')),
+            'menu_card': load_texture(join(self.GRAPHICS_DIR, 'ui', 'menu_card.png')),
             }
 
         self.background_images: dict[str, Texture] = {
@@ -218,8 +294,11 @@ class Game:
         }
 
         self.fonts: dict[str, Font] = {
-            'title': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), TITLE_FONT_SIZE, ffi.NULL, 0),
-            'regular': load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), REGULAR_FONT_SIZE, ffi.NULL, 0),
+            'title': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['title'], ffi.NULL, 0),
+            'game_over': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['game_over'], ffi.NULL, 0),
+            'menu_heading': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['menu_heading'], ffi.NULL, 0),
+            'settings_tab_clickable_text': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['settings_tab_clickable_text'], ffi.NULL, 0),
+            'debugging': load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['debugging'], ffi.NULL, 0),
             }
 
     def import_audio(self) -> None:
@@ -237,6 +316,9 @@ class Game:
             'grass_cut': load_sound(join(self.SFX_DIR, 'grass_cut.wav')),
             'enemy_hurt': load_sound(join(self.SFX_DIR, 'enemy_hurt.wav')),
             'player_hurt': load_sound(join(self.SFX_DIR, 'player_hurt.wav')),
+            'menu_button_pressed': load_sound(join(self.SFX_DIR, 'menu_button_pressed.wav')),
+            'pause_menu_opened': load_sound(join(self.SFX_DIR, 'pause_menu_opened.wav')),
+            'menu_button_hovered': load_sound(join(self.SFX_DIR, 'menu_button_hovered.wav')),
         }
 
     def import_world_data(self) -> None:
@@ -250,6 +332,9 @@ class Game:
         # state
         self.state = 'boot'
         self.requested_state = 'title'
+        self.current_menu_tab_id: int = 0 # 1 = map, 2 = inventory, 3 = settings, 0 = None
+        self.current_menu_tab: Optional[MenuTab] = None
+        self.main_menu_tab_names: list[str] = ["Map", "Inventory", "Settings"]
         # time
         self.play_time = 0.0
         self.play_start = 0.0
@@ -265,6 +350,10 @@ class Game:
         self.current_key: Optional[str] = None
         self.current_track: Music = self.music['title']
 
+    def init_main_menu_texts(self) -> None:
+        self.title_text = RegularText(self, GAME_NAME, self.fonts['title'], FONT_SIZES['title'], 0, SCREEN_CENTER, COLORS['title_text'], COLORS['title_text_shadow'])
+        self.game_over_text = RegularText(self, "Game Over", self.fonts['game_over'], FONT_SIZES['game_over'], 0, SCREEN_CENTER, COLORS['game_over_text'], COLORS['game_over_text_shadow'])
+
     def load_settings(self) -> None:
         self.load_user_bindings()
 
@@ -274,33 +363,6 @@ class Game:
         self.last_saved_current_map: str = save_data.get('current_map', 'start_area')
 
     # --- Input System ---
-    def get_general_input(self) -> None:
-        self.input_cooldown_timer.update()
-        # --- Universal Input ---
-        if self.input_pressed('fullscreen'):
-            toggle_fullscreen()
-            hide_cursor() if is_window_fullscreen() else show_cursor()
-
-        # --- TITLE ---
-        if self.state == 'title':
-            if self.input_pressed('pause') or self.input_pressed('confirm'):
-                self.requested_state = 'play'
-
-        # --- PLAY ---
-        elif self.state == 'play':
-            if self.input_pressed('pause'):
-                self.requested_state = 'pause'
-
-        # --- PAUSE ---
-        elif self.state == 'pause':
-            if self.input_pressed('pause'):
-                self.requested_state = 'play'
-
-        # --- GAME OVER ---
-        elif self.state == 'game_over':
-            if self.input_pressed('confirm'):
-                self.requested_state = 'play'
-
     def load_user_bindings(self):
         data = load_file(self.SETTINGS_FILE, "Loading keybindings")
         if 'keybindings' in data:

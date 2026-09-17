@@ -1,3 +1,4 @@
+"""Functions are sorted according to execution order."""
 from sprites import *
 
 class Enemy(Entity):
@@ -13,33 +14,39 @@ class Enemy(Entity):
         self.attack_cooldown_timer = Timer(self.game, self.stats['attack_cooldown'], True, False, False)
         self.timers.append(self.attack_cooldown_timer)
 
-    def update(self, dt: float):
-        self.set_state()
+    def update(self, dt: float) -> None:
+        distance, direction = self.get_player_distance_direction()
+        self.update_state(distance, direction)
         super().update(dt)
 
     def get_player_distance_direction(self) -> tuple[float, Vector2]:
         distance_vector = vector2_subtract(self.game.level.player.center, self.center)
         distance = vector2_length(distance_vector)
-
-        if distance > 0:
-            direction = vector2_normalize(distance_vector)
-        else:
-            direction = Vector2()
-        
+        direction = vector2_normalize(distance_vector) if distance > 0 else Vector2()
         return (distance, direction)
 
-    def set_state(self):
-        distance = self.get_player_distance_direction()[0]
-        if self.state == 'attack' or self.knockback_timer.active:
+    def update_state(self, distance: float, direction: Vector2) -> None:
+        # Priority 1: Freeze state changes during knockback
+        if self.knockback_timer.active:
             return
 
-        if distance <= self.attack_radius and not self.attack_cooldown_timer.active:
-            if not self.state == 'attack':
-                self.state = 'attack'
+        # Priority 2: Manage active attack lock
+        if self.state == 'attack':
+            self.speed = ENTITY_DATA[self.obj_name].get('attack_speed', self.stats['speed'])
+            if self.animation_index >= len(self.animation_frames):
+                self.attack_cooldown_timer.activate()
                 self.animation_index = 0
+                self.speed = self.stats['speed']
+                self.state = 'move'
+            return
+
+        # Priority 3: Transition non-attacking states
+        if distance <= self.attack_radius and not self.attack_cooldown_timer.active:
+            self.state = 'attack'
+            self.animation_index = 0
         elif distance <= self.notice_radius:
             self.state = 'move'
-            self.direction = self.get_player_distance_direction()[1]
+            self.direction = direction
         else:
             self.state = 'idle'
             self.direction = Vector2()
@@ -49,11 +56,6 @@ class Enemy(Entity):
 
     def update_appearance(self, dt: float):
         # --- Update texture frame ---
-        if self.state == 'attack':
-            if self.animation_index >= len(cast(list, self.animation_frames)):   
-                self.attack_cooldown_timer.activate()
-                self.animation_index = 0
-                self.state = 'move'
         self.animation_frames = self.game.entity_images[self.obj_name][self.state]
         self.animation_index += ENEMY_ANIMATION_SPEED * self.speed * dt
         super().update_appearance(dt)

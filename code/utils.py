@@ -13,7 +13,7 @@ def debug(game: Game, font: Font, info, pos_x: int = 10, pos_y: int = 10) -> Non
     
     begin_texture_mode(game.virtual_screen)
     draw_rectangle_rec(rectangle, BLACK)
-    draw_text_ex(font, info_text, Vector2(pos_x, pos_y), font_size, REGULAR_FONT_SPACING, WHITE)
+    draw_text_ex(font, info_text, Vector2(pos_x, pos_y), font_size, FONT_SIZES['debugging'], WHITE)
     end_texture_mode()
 
 def draw_grid_2d(width: int, height: int, cell_size: int, color: Color = LIGHTGRAY):
@@ -72,6 +72,53 @@ class Timer:
                 self.deactivate()
                 if self.repeat:
                     self.activate()
+
+class RegularText:
+    def __init__(self, game: Game, text: str, font: Font, font_size: int, font_spacing: int, pos: tuple[float, float], color: Color, shadow_color: Optional[Color]) -> None:
+        self.game = game
+        self.font = font
+        self.font_size = font_size
+        self.font_spacing = font_spacing
+        self.text = text
+        self.color = color
+        self.text_size = measure_text_ex(self.font, self.text, self.font_size, self.font_spacing)
+        self.pos = Vector2(pos[0] - self.text_size.x/2, pos[1] - self.text_size.y/2)
+        self.shadow_color = shadow_color
+
+    def draw_shadow(self) -> None:
+        if self.shadow_color:
+            draw_text_ex(self.font, self.text, Vector2(self.pos.x + 2, self.pos.y + 2), self.font_size, 0, self.shadow_color)    
+
+    def draw(self):
+        self.draw_shadow()
+        draw_text_ex(self.font, self.text, self.pos, self.font_size, 0, self.color)
+
+class ClickableText(RegularText):
+    """Clickable text button that changes color when hovered."""
+
+    def __init__(self, game: Game, text: str, font: Font, font_size: int, font_spacing: int, pos: tuple[float, float], color: Color, shadow_color: Optional[Color], hover_color: Color) -> None:
+        super().__init__(game, text, font, font_size, font_spacing, pos, color, shadow_color)
+        self.hover_color = hover_color
+        self.hovered = False
+        self.clicked = False
+        self.hover_changed = False
+        self.controller_hovered = False
+
+    def update(self) -> None:
+        prev_hover = self.hovered
+        self.hovered = self.controller_hovered
+        self.hover_changed = (self.hovered != prev_hover)
+
+        if self.hover_changed and self.hovered:
+            self.game.play_sfx('menu_button_hovered')
+
+        if self.clicked:
+            self.game.play_sfx('menu_button_pressed')
+
+    def draw(self):
+        self.draw_shadow()
+        current_color = self.hover_color if self.hovered else self.color
+        draw_text_ex(self.font, self.text, self.pos, self.font_size, self.font_spacing, current_color)
 
 @dataclass
 class Circle:

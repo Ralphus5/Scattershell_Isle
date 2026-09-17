@@ -1,3 +1,4 @@
+"""Functions are sorted according to execution order."""
 from utils import *
 
 class Sprite:
@@ -18,17 +19,23 @@ class Sprite:
     def draw(self):
         draw_texture_ex(self.texture, self.pos, 0, 1, WHITE)
 
+    def set_position(self, pos: Vector2) -> None:
+        self.pos = Vector2(pos.x, pos.y)
+        self.hitbox.x = self.pos.x
+        self.hitbox.y = self.pos.y
+
 class Entity(Sprite):
     def __init__(self, game: Game, obj_name: str, pos: Vector2, textures: list[Texture]) -> None:
         super().__init__(game, obj_name, pos, textures[0])
         self.animation_frames = textures
         self.animation_index: float = 0.0
-        self.attacking = False
         self.timers: list[Timer] = []
         self.hurt_timer = Timer(self.game, HURT_TIMES[self.__class__.__name__], True, False, False)
         self.knockback_timer = Timer(self.game, KNOCKBACK_TIMES[self.__class__.__name__], True, False, False)
+        self.attack_cooldown_timer = Timer(self.game, ENTITY_DATA[self.obj_name]['attack_cooldown'], True, False, False)
         self.timers.append(self.hurt_timer)
         self.timers.append(self.knockback_timer)
+        self.timers.append(self.attack_cooldown_timer)
         self.direction = Vector2()
         self.speed = 0
         self.health = 0
@@ -39,6 +46,11 @@ class Entity(Sprite):
     @property
     def center(self) -> Vector2:
         return Vector2(self.pos.x + self.texture.width/2, self.pos.y + self.texture.height/2)
+
+    def set_position(self, pos: Vector2) -> None:
+        self.pos = Vector2(pos.x, pos.y)
+        self.hitbox.x = self.pos.x + self.half_hitbox_offset_horizontal
+        self.hitbox.y = self.pos.y + self.half_hitbox_offset_vertical
 
     def update(self, dt: float) -> None:
         self.attack()
@@ -71,7 +83,7 @@ class Entity(Sprite):
         pass
    
     def move(self, dt: float) -> None:
-        if self.attacking:
+        if self.attack_cooldown_timer.active and not self.knockback_timer.active:
             return
 
         # --- Horizontal ---
@@ -119,11 +131,29 @@ class Tile(Sprite):
         
         self.hitbox = inflate_rect(Rectangle(self.pos.x, hitbox_y, self.texture.width, hitbox_h), 0, -self.texture.height/5)
 
-class Weapon(Sprite):
-    def __init__(self, game: Game, obj_name: str, pos: Vector2, texture: Texture) -> None:
-        super().__init__(game, obj_name, pos, texture)
-        self.game = game
+class Sword(Sprite):
+    def __init__(self, game: Game, obj_name: str) -> None:
+        super().__init__(game, obj_name, Vector2(0,0), game.sword_images[game.level.player.facing_direction])
+        self.player = game.level.player
+        self.align_to_player()
         self.game.play_sfx(self.obj_name, PITCH_VARIATION_SWORD)
+
+    def align_to_player(self) -> None:
+        direction = self.player.facing_direction
+        self.texture = self.game.sword_images[direction]
+        p_pos, p_tex = self.player.pos, self.player.texture
+
+        match direction:
+            case 'down':  pos = Vector2(p_pos.x + p_tex.width / 8, p_pos.y + p_tex.height)
+            case 'up':    pos = Vector2(p_pos.x + p_tex.width / 8, p_pos.y - self.texture.height)
+            case 'right': pos = Vector2(p_pos.x + p_tex.width, self.player.center.y)
+            case 'left':  pos = Vector2(p_pos.x - self.texture.width, self.player.center.y)
+
+        self.pos = pos
+        self.hitbox = Rectangle(self.pos.x, self.pos.y, self.texture.width, self.texture.height)
+        
+    def update(self, dt: float) -> None:
+        self.align_to_player()
 
 class Zone():
     def __init__(self, obj_name: str, shape_name: str, player_pos: str, pos: Vector2, width: int, height: int) -> None:
@@ -135,4 +165,5 @@ class Zone():
             self.shape = Rectangle(pos.x, pos.y, width, height)
         elif self.shape_name == 'ellipse':
             self.shape = Circle(Vector2(pos.x + width/2, pos.y + height/2), width/2)
+
         

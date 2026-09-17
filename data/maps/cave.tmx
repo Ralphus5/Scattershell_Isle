@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="64" tileheight="64" infinite="0" nextlayerid="7" nextobjectid="45">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="64" tileheight="64" infinite="0" nextlayerid="7" nextobjectid="46">
  <editorsettings>
   <export format="csv"/>
  </editorsettings>
@@ -121,6 +121,7 @@
   <object id="41" name="column" type="tile" gid="68" x="1232" y="896" width="64" height="128"/>
   <object id="42" name="column" type="tile" gid="68" x="288" y="560" width="64" height="128"/>
   <object id="44" name="cave" type="player" gid="69" x="960" y="832" width="52" height="56"/>
+  <object id="45" name="bamboo" type="enemy" gid="72" x="660" y="1360" width="64" height="64"/>
  </objectgroup>
  <objectgroup id="5" name="collision_shapes" visible="0">
   <object id="15" name="collsion_box" type="collision" x="1897.33" y="-18.6667" width="61.3333" height="1964" visible="0"/>

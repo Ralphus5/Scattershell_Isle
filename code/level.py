@@ -1,4 +1,5 @@
-from player import *
+"""Functions are sorted according to execution order."""
+from menu import *
 
 class Level:
     def __init__(self, game: Game, map: str) -> None:
@@ -144,7 +145,7 @@ class Level:
         draw_texture(cast(Texture,self.floor_image), 0, 0, WHITE)
 
         # y-sort and draw sprites
-        self.sprites.sort(key=lambda sprite: sprite.y_sort_pos)
+        self.sprites.sort(key=attrgetter('y_sort_pos'))
         for sprite in self.sprites:
             sprite.draw()
 
