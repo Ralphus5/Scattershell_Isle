@@ -44,6 +44,12 @@ COLORS: dict[str, Color] = {
     'pause_menu_button_hovered': RED,
     'game_over_text': RED,
     'game_over_text_shadow': DARKPURPLE,
+    'save_and_quit_prompt': BLACK,
+    'master_volume': Color(10,70,255,255),
+    'master_volume_rect': RAYWHITE,
+    'master_volume_rect_hovered': Color(252,96,96,255),
+    'master_volume_rect_outline': Color(144,87,52,255),
+    'master_volume_line': BLACK
 }
 
  # fonts
@@ -52,6 +58,8 @@ FONT_SIZES: dict[str, int] = {
     'game_over': 105,
     'menu_heading': 80,
     'settings_tab_clickable_text': 60,
+    'save_and_quit_prompt': 65,
+    'master_volume': 70,
     'debugging': 30,
 }
 
@@ -74,6 +82,7 @@ SFX_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
     'player_hurt': 1.0,
     'menu_button_pressed': 1.0,
     'pause_menu_opened': 1.0,
+    'menu_button_hovered': 1.0,
 }
 
 # pitch variations
@@ -83,7 +92,7 @@ PITCH_VARIATION_PLAYER_HURT: float = 0.2
 PITCH_VARIATION_GRASS_CUT: float = 0.2
 
 # --- INPUT ---
-NON_REMAPPABLE_ACTIONS: Set[str] = {'toggle_fullscreen', 'open_inventory', 'open_map', 'switch_menu_tab_right', 'switch_menu_tab_left', 'menu_move_left', 'menu_move_right', 'menu_move_up', 'menu_move_down', 'confirm'}
+NON_REMAPPABLE_ACTIONS: Set[str] = {'toggle_fullscreen', 'controller_menu_back', 'open_inventory', 'open_map', 'switch_menu_tab_right', 'switch_menu_tab_left', 'menu_move_left', 'menu_move_right', 'menu_move_up', 'menu_move_down', 'confirm'}
 
 DEFAULT_KEYBOARD_BINDINGS: dict[str, int] = {
                             'move_left': KEY_A,
@@ -96,11 +105,11 @@ DEFAULT_KEYBOARD_BINDINGS: dict[str, int] = {
                             'menu_move_down': KEY_DOWN,
                             'item_slot_1': KEY_ENTER,
                             'item_slot_2': KEY_SPACE,
-                            'confirm': KEY_ENTER,
                             'open_inventory': KEY_ESCAPE,
                             'open_map': KEY_BACKSPACE,
                             'switch_menu_tab_right': KEY_E,
                             'switch_menu_tab_left': KEY_Q,
+                            'confirm': KEY_ENTER,
                             'fullscreen': KEY_F11} # keyboard only
 
 DEFAULT_CONTROLLER_BINDINGS: dict[str, int] = {
@@ -114,10 +123,11 @@ DEFAULT_CONTROLLER_BINDINGS: dict[str, int] = {
                             'menu_move_down': GAMEPAD_BUTTON_LEFT_FACE_DOWN,
                             'item_slot_1': GAMEPAD_BUTTON_RIGHT_FACE_DOWN,
                             'item_slot_2': GAMEPAD_BUTTON_RIGHT_FACE_RIGHT,
-                            'confirm': GAMEPAD_BUTTON_RIGHT_FACE_DOWN,
                             'open_inventory': GAMEPAD_BUTTON_MIDDLE_RIGHT,
                             'open_map': GAMEPAD_BUTTON_MIDDLE_LEFT,
                             'switch_menu_tab_right': GAMEPAD_BUTTON_RIGHT_TRIGGER_1,
-                            'switch_menu_tab_left': GAMEPAD_BUTTON_LEFT_TRIGGER_1}
+                            'switch_menu_tab_left': GAMEPAD_BUTTON_LEFT_TRIGGER_1,
+                            'confirm': GAMEPAD_BUTTON_RIGHT_FACE_RIGHT,
+                            'controller_menu_back': GAMEPAD_BUTTON_RIGHT_FACE_DOWN} # controller only
 
 CONTROLLER_DEAD_ZONE: Annotated[float, (0.0-1.0)] = 0.25

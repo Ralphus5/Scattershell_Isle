@@ -1,7 +1,6 @@
 from settings import *
 
 # --- Debug and Tools ---
-
 def debug(game: Game, font: Font, info, pos_x: int = 10, pos_y: int = 10) -> None:
     """Draws a variable as text on the virtual screen"""
     info_text = str(info)
@@ -74,7 +73,7 @@ class Timer:
                     self.activate()
 
 class RegularText:
-    def __init__(self, game: Game, text: str, font: Font, font_size: int, font_spacing: int, pos: tuple[float, float], color: Color, shadow_color: Optional[Color]) -> None:
+    def __init__(self, game: Game, text: str, font: Font, font_size: int, font_spacing: int, pos: tuple[float, float], color: Color, shadow_color: Optional[Color] = None) -> None:
         self.game = game
         self.font = font
         self.font_size = font_size
@@ -96,7 +95,7 @@ class RegularText:
 class ClickableText(RegularText):
     """Clickable text button that changes color when hovered."""
 
-    def __init__(self, game: Game, text: str, font: Font, font_size: int, font_spacing: int, pos: tuple[float, float], color: Color, shadow_color: Optional[Color], hover_color: Color) -> None:
+    def __init__(self, game: Game, text: str, font: Font, font_size: int, font_spacing: int, pos: tuple[float, float], color: Color, hover_color: Color, shadow_color: Optional[Color] = None) -> None:
         super().__init__(game, text, font, font_size, font_spacing, pos, color, shadow_color)
         self.hover_color = hover_color
         self.hovered = False

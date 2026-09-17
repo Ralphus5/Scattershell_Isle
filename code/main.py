@@ -11,11 +11,12 @@ class Game:
         self.init_main_menu_texts()
         self.load_settings()
         self.load_save_data()
+        self.set_volumes()
         set_window_icon(self.icon)
 
 # --- GAME LOOP ---
     def run(self) -> None:
-        while not window_should_close():
+        while self.running and not window_should_close():
             dt = get_frame_time()
             self.get_general_input()
             self.change_game_mode()
@@ -37,7 +38,7 @@ class Game:
 
         # --- TITLE ---
         if self.state == 'title':
-            if self.input_pressed('pause') or self.input_pressed('confirm'):
+            if self.input_pressed('confirm') or self.input_pressed('open_map') or self.input_pressed('open_inventory'):
                 self.requested_state = 'play'
 
         # --- PLAY ---
@@ -46,16 +47,15 @@ class Game:
             if self.input_pressed('open_map') or self.input_pressed('open_inventory'):
                 self.play_sfx('pause_menu_opened')
                 self.requested_state = 'pause'
-                self.current_menu_tab_id = 1 if self.input_pressed('open_map') else 2
+                self.current_menu_tab_id = 0 if self.input_pressed('open_map') else 1
                 self.current_menu_tab = MenuTab(self, self.main_menu_tab_names[self.current_menu_tab_id])
 
         # --- PAUSE ---
         elif self.state == 'pause':
-
             # --- Main Tabs ---
             # unpause
-            if self.current_menu_tab.menu_name in self.main_menu_tab_names:
-                if self.input_pressed('open_inventory') or self.input_pressed('open_map'):
+            if self.current_menu_tab.menu_name in self.main_menu_tab_names: # type: ignore
+                if self.input_pressed('open_inventory') or self.input_pressed('open_map') or self.input_pressed('controller_menu_back'):
                     self.requested_state = 'play'
 
                 # switch tab
@@ -72,13 +72,13 @@ class Game:
                 elif self.current_menu_tab and self.current_menu_tab.clickable_entities:
                     num_items = len(self.current_menu_tab.clickable_entities)
 
-                    if self.input_pressed('menu_move_up') or self.input_pressed('move_up'):
+                    if self.input_pressed('menu_move_up'):
                         if self.current_menu_tab.hover_id == -1:
                             self.current_menu_tab.hover_id = num_items - 1  # Select last item
                         else:
                             self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 1) % num_items
 
-                    elif self.input_pressed('menu_move_down') or self.input_pressed('move_down'):
+                    elif self.input_pressed('menu_move_down'):
                         if self.current_menu_tab.hover_id == -1:
                             self.current_menu_tab.hover_id = 0  # Select first item
                         else:
@@ -90,12 +90,58 @@ class Game:
                                 entity.clicked = entity.hovered
             # --- Sub Tabs ---
             else:
-                if self.input_pressed('open_inventory') or self.input_pressed('open_map'):
+                # go back to main menu tabs
+                if self.input_pressed('open_inventory') or self.input_pressed('open_map') or self.input_pressed('controller_menu_back'):
+                    if self.current_menu_tab.menu_name == "Audio":
+                        set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume * MUSIC_PAUSE_DIM_FACTOR)
                     self.current_menu_tab = MenuTab(self, self.main_menu_tab_names[self.current_menu_tab_id])
+
+                if self.current_menu_tab.menu_name == "Save & Quit":
+                    num_items = len(self.current_menu_tab.clickable_entities)
+                    if self.input_pressed('menu_move_right'):
+                        if self.current_menu_tab.hover_id == -1:
+                            self.current_menu_tab.hover_id = num_items - 1  # Select last item
+                        else:
+                            self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 1) % num_items
+
+                    elif self.input_pressed('menu_move_left'):
+                        if self.current_menu_tab.hover_id == -1:
+                            self.current_menu_tab.hover_id = 0  # Select first item
+                        else:
+                            self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id + 1) % num_items
+
+                    elif self.input_pressed('confirm'):
+                        for entity in self.current_menu_tab.clickable_entities:
+                            entity.clicked = entity.hovered
+
+                elif self.current_menu_tab.menu_name == "Audio":
+                    if self.input_pressed('menu_move_up') and not self.current_menu_tab.master_volume_rect_hovered:
+                        self.current_menu_tab.hover_id = -1
+                        self.current_menu_tab.master_volume_rect_hovered = True
+                        self.play_sfx('menu_button_hovered')
+                    elif self.input_pressed('menu_move_down'):
+                        self.current_menu_tab.hover_id = 0
+                        self.current_menu_tab.master_volume_rect_hovered = False
+                    elif self.input_pressed('confirm'):
+                        self.current_menu_tab.clickable_entities[0].clicked = self.current_menu_tab.clickable_entities[0].hovered
+
+                    if self.current_menu_tab.master_volume_rect_hovered:
+                        volume_changed = False
+                        if self.input_pressed('menu_move_right'):
+                            self.master_volume = min(1.0, round(self.master_volume + 0.1, 2))
+                            volume_changed = True
+                        elif self.input_pressed('menu_move_left'):
+                            self.master_volume = max(0.0, round(self.master_volume - 0.1, 2))
+                            volume_changed = True
+
+                        if volume_changed:
+                            self.set_volumes()
+                            self.save_settings()
+                            self.play_sfx('menu_button_pressed')
 
         # --- GAME OVER ---
         elif self.state == 'game_over':
-            if self.input_pressed('confirm'):
+            if self.input_pressed('confirm') or self.input_pressed('open_inventory'):
                 self.requested_state = 'play'
 
     def change_game_mode(self) -> None:
@@ -123,7 +169,7 @@ class Game:
             elif old == 'pause':
                 self.current_menu_tab_id = 0
                 self.resume_play_time()
-                set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * MASTER_VOLUME)
+                set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume)
             elif old == 'game_over':
                 self.resume_play_time()
                 self.save_game_data()
@@ -135,7 +181,7 @@ class Game:
         elif new == 'pause':
             if old == 'play':
                 self.pause_play_time()
-                set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * MASTER_VOLUME * MUSIC_PAUSE_DIM_FACTOR)
+                set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume * MUSIC_PAUSE_DIM_FACTOR)
 
         # --- GAME OVER ---
         elif new == 'game_over':
@@ -298,6 +344,8 @@ class Game:
             'game_over': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['game_over'], ffi.NULL, 0),
             'menu_heading': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['menu_heading'], ffi.NULL, 0),
             'settings_tab_clickable_text': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['settings_tab_clickable_text'], ffi.NULL, 0),
+            'save_and_quit_prompt': load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['save_and_quit_prompt'], ffi.NULL, 0),
+            'master_volume': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['master_volume'], ffi.NULL, 0),
             'debugging': load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['debugging'], ffi.NULL, 0),
             }
 
@@ -330,9 +378,10 @@ class Game:
 
     def init_state(self) -> None:
         # state
+        self.running = True
         self.state = 'boot'
         self.requested_state = 'title'
-        self.current_menu_tab_id: int = 0 # 1 = map, 2 = inventory, 3 = settings, 0 = None
+        self.current_menu_tab_id: int = 0 # 0 = map, 1 = inventory, 2 = settings
         self.current_menu_tab: Optional[MenuTab] = None
         self.main_menu_tab_names: list[str] = ["Map", "Inventory", "Settings"]
         # time
@@ -346,16 +395,29 @@ class Game:
         self.keyboard_bindings = dict(DEFAULT_KEYBOARD_BINDINGS)
         self.controller_bindings = dict(DEFAULT_CONTROLLER_BINDINGS)
         # audio
-        self.set_volumes()
         self.current_key: Optional[str] = None
         self.current_track: Music = self.music['title']
 
     def init_main_menu_texts(self) -> None:
         self.title_text = RegularText(self, GAME_NAME, self.fonts['title'], FONT_SIZES['title'], 0, SCREEN_CENTER, COLORS['title_text'], COLORS['title_text_shadow'])
         self.game_over_text = RegularText(self, "Game Over", self.fonts['game_over'], FONT_SIZES['game_over'], 0, SCREEN_CENTER, COLORS['game_over_text'], COLORS['game_over_text_shadow'])
+        self.save_and_quit_prompt = RegularText(self, "\t\t\t\t\t\t\t\t\t\tQuit game?\n(Progress is saved automatically.)", self.fonts['save_and_quit_prompt'], FONT_SIZES['save_and_quit_prompt'], 0, SCREEN_CENTER, COLORS['save_and_quit_prompt'])
+        self.audio_text = RegularText(self, "-\t\tMaster Volume\t\t+", self.fonts['master_volume'], FONT_SIZES['master_volume'], 0, (SCREEN_CENTER[0], SCREEN_CENTER[1] - 100), COLORS['master_volume'])
 
-    def load_settings(self) -> None:
-        self.load_user_bindings()
+    def save_settings(self) -> None:
+        current_process = "Saving settings"
+        save_data = load_file(self.SETTINGS_FILE, current_process)
+
+        current_kb = {k: v for k, v in self.keyboard_bindings.items() if k not in NON_REMAPPABLE_ACTIONS}
+        current_ctrl = {k: v for k, v in self.controller_bindings.items() if k not in NON_REMAPPABLE_ACTIONS}
+
+        save_data['master_volume'] = self.master_volume
+        save_data['keybindings'] = {
+                    'keyboard': current_kb,
+                    'controller': current_ctrl
+                }
+
+        save_file(self.SETTINGS_FILE, save_data, current_process)
 
     def load_save_data(self) -> None:
         save_data = load_file(self.SAVE_FILE)
@@ -363,27 +425,14 @@ class Game:
         self.last_saved_current_map: str = save_data.get('current_map', 'start_area')
 
     # --- Input System ---
-    def load_user_bindings(self):
-        data = load_file(self.SETTINGS_FILE, "Loading keybindings")
+    def load_settings(self):
+        data = load_file(self.SETTINGS_FILE, "Loading settings")
+        self.master_volume: float = float(data.get('master_volume', MASTER_VOLUME))
         if 'keybindings' in data:
             if 'keyboard' in data['keybindings']:
                 self.keyboard_bindings.update(data['keybindings']['keyboard'])
             if 'controller' in data['keybindings']:
                 self.controller_bindings.update(data['keybindings']['controller'])
-
-    def save_user_bindings(self):
-        current_process = "Saving keybindings"
-        save_data = load_file(self.SETTINGS_FILE, current_process)
-
-        current_kb = {k: v for k, v in self.keyboard_bindings.items() if k not in NON_REMAPPABLE_ACTIONS}
-        current_ctrl = {k: v for k, v in self.controller_bindings.items() if k not in NON_REMAPPABLE_ACTIONS}
-
-        save_data['keybindings'] = {
-                    'keyboard': current_kb,
-                    'controller': current_ctrl
-                }
-
-        save_file(self.SETTINGS_FILE, save_data, current_process)
 
     def check_joystick_dead_zone(self, axis: float) -> int:
         if not abs(axis) > CONTROLLER_DEAD_ZONE:
@@ -463,11 +512,11 @@ class Game:
     def set_volumes(self) -> None:
         # --- music volumes ---
         for track in MUSIC_VOLUMES.keys():
-            set_music_volume(self.music[track], MUSIC_VOLUMES[track] * MASTER_VOLUME)
+            set_music_volume(self.music[track], MUSIC_VOLUMES[track] * self.master_volume)
 
         # --- sfx volumes ---
         for sound in SFX_VOLUMES.keys():
-            set_sound_volume(self.sfx[sound], SFX_VOLUMES[sound] * MASTER_VOLUME)
+            set_sound_volume(self.sfx[sound], SFX_VOLUMES[sound] * self.master_volume)
 
     # --- Time System ---
     def update_play_time(self) -> None:
@@ -489,8 +538,7 @@ if __name__ == '__main__':
     game = Game()
     game.run()
     game.save_runtime()
-    game.save_game_data()
-    game.save_user_bindings()
+    game.save_settings()
     # --- Cleanup ---
     close_window()
     close_audio_device()
