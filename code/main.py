@@ -13,6 +13,7 @@ class Game:
         self.load_save_data()
         self.set_volumes()
         set_window_icon(self.icon)
+        set_exit_key(0)
 
 # --- GAME LOOP ---
     def run(self) -> None:
@@ -38,24 +39,30 @@ class Game:
 
         # --- TITLE ---
         if self.state == 'title':
-            if self.input_pressed('confirm') or self.input_pressed('open_map') or self.input_pressed('open_inventory'):
+            if self.input_pressed('confirm') or self.input_pressed('open_map') or self.input_pressed('open_inventory') or self.input_pressed('menu_back'):
                 self.requested_state = 'play'
 
         # --- PLAY ---
         elif self.state == 'play':
             # enter pause state
-            if self.input_pressed('open_map') or self.input_pressed('open_inventory'):
+            if self.input_pressed('open_map') or self.input_pressed('open_inventory') or (self.input_pressed('menu_back') and is_key_pressed(self.keyboard_bindings['menu_back'])):
                 self.play_sfx('pause_menu_opened')
                 self.requested_state = 'pause'
-                self.current_menu_tab_id = 0 if self.input_pressed('open_map') else 1
+                if self.input_pressed('open_map'):
+                    self.current_menu_tab_id = 0 
+                elif self.input_pressed('open_inventory'):
+                    self.current_menu_tab_id = 1
+                elif self.input_pressed('menu_back'):
+                    self.current_menu_tab_id = 2
                 self.current_menu_tab = MenuTab(self, self.main_menu_tab_names[self.current_menu_tab_id])
-
+ 
         # --- PAUSE ---
         elif self.state == 'pause':
+            assert self.current_menu_tab is not None
             # --- Main Tabs ---
             # unpause
             if self.current_menu_tab.menu_name in self.main_menu_tab_names: # type: ignore
-                if self.input_pressed('open_inventory') or self.input_pressed('open_map') or self.input_pressed('controller_menu_back'):
+                if self.input_pressed('open_inventory') or self.input_pressed('open_map') or self.input_pressed('menu_back'):
                     self.requested_state = 'play'
 
                 # switch tab
@@ -78,7 +85,7 @@ class Game:
                         else:
                             self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 1) % num_items
 
-                    elif self.input_pressed('menu_move_down'):
+                    elif self.input_pressed('menu_move_down'): 
                         if self.current_menu_tab.hover_id == -1:
                             self.current_menu_tab.hover_id = 0  # Select first item
                         else:
@@ -88,14 +95,32 @@ class Game:
                         if self.input_pressed('confirm'):
                             for entity in self.current_menu_tab.clickable_entities:
                                 entity.clicked = entity.hovered
+
             # --- Sub Tabs ---
             else:
+                button_was_reassigned = False
+                if self.keyboard_bindings_prompt.text == "Press key to assign...(ESC to cancel)":
+                    if self.input_pressed('menu_back'):
+                        self.keyboard_bindings_prompt.text = self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text
+                    else:
+                        for key in KEY_TO_NAME.keys():
+                            if is_key_pressed(key) and not key in NON_REMAPPABLE_KEYS:
+                                if self.current_menu_tab.hover_id in (6, 8) and key in NON_MAPPABLE_KEYS_TO_PAUSE:
+                                    print(f"Cannot assign {KEY_TO_NAME[key]} to 'open map' or 'open inventory' due to menu navigation conflicts!") # create warning text???
+                                else:
+                                    self.keyboard_bindings[self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text.replace(" ", "_").lower()] = key
+                                    self.keyboard_bindings_prompt.text = self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text
+                                    self.keyboard_bindings_prompt.update_position_and_size((SCREEN_CENTER[0], SCREEN_CENTER[1] + 200))
+                                    self.save_settings()
+                                    button_was_reassigned = True
+                    
                 # go back to main menu tabs
-                if self.input_pressed('open_inventory') or self.input_pressed('open_map') or self.input_pressed('controller_menu_back'):
+                elif self.input_pressed('open_inventory') or self.input_pressed('open_map') or self.input_pressed('menu_back'):
                     if self.current_menu_tab.menu_name == "Audio":
                         set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume * MUSIC_PAUSE_DIM_FACTOR)
                     self.current_menu_tab = MenuTab(self, self.main_menu_tab_names[self.current_menu_tab_id])
 
+                # --- quit submenu ---
                 if self.current_menu_tab.menu_name == "Save & Quit":
                     num_items = len(self.current_menu_tab.clickable_entities)
                     if self.input_pressed('menu_move_right'):
@@ -114,6 +139,7 @@ class Game:
                         for entity in self.current_menu_tab.clickable_entities:
                             entity.clicked = entity.hovered
 
+                # --- audio submenu ---
                 elif self.current_menu_tab.menu_name == "Audio":
                     if self.input_pressed('menu_move_up') and not self.current_menu_tab.master_volume_rect_hovered:
                         self.current_menu_tab.hover_id = -1
@@ -138,6 +164,45 @@ class Game:
                             self.set_volumes()
                             self.save_settings()
                             self.play_sfx('menu_button_pressed')
+
+                # --- controls submenu ---
+                elif self.current_menu_tab.menu_name == "Controls":
+                    if not self.keyboard_bindings_prompt.text == "Press key to assign...(ESC to cancel)" and not button_was_reassigned:
+                        num_items = len(self.current_menu_tab.clickable_entities)
+                        if self.input_pressed('menu_move_right'):
+                            if self.current_menu_tab.hover_id == -1:
+                                self.current_menu_tab.hover_id = num_items - 1  # Select last item
+                            else:
+                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id + 1) % num_items
+
+                        elif self.input_pressed('menu_move_left'):
+                            if self.current_menu_tab.hover_id == -1:
+                                self.current_menu_tab.hover_id = 0  # Select first item
+                            else:
+                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 1) % num_items
+
+                        elif self.input_pressed('menu_move_up'):
+                            if self.current_menu_tab.hover_id == -1:
+                                self.current_menu_tab.hover_id = num_items - 1  # Select last item
+                            else:
+                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 2) % num_items if self.current_menu_tab.hover_id - 2 >= 0 else (self.current_menu_tab.hover_id - 1) % num_items
+
+                        elif self.input_pressed('menu_move_down'):
+                            if self.current_menu_tab.hover_id == -1:
+                                self.current_menu_tab.hover_id = 0  # Select first item
+                            else:
+                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id + 2) % num_items if self.current_menu_tab.hover_id + 2 < num_items else (self.current_menu_tab.hover_id + 1) % num_items
+
+                        elif self.input_pressed('confirm') and not button_was_reassigned:
+                            for entity in self.current_menu_tab.clickable_entities:
+                                entity.clicked = entity.hovered
+
+                    # update key prompt
+                        self.keyboard_bindings_prompt.text = "..."
+                        for entity in self.current_menu_tab.clickable_entities:
+                            if entity.hovered and not entity.text in ("Back", "Reset to defaults"):
+                                self.keyboard_bindings_prompt.text = KEY_TO_NAME[self.keyboard_bindings[entity.text.replace(" ", "_").lower()]]
+                        self.keyboard_bindings_prompt.update_position_and_size((SCREEN_CENTER[0], SCREEN_CENTER[1] + 200))
 
         # --- GAME OVER ---
         elif self.state == 'game_over':
@@ -346,6 +411,8 @@ class Game:
             'settings_tab_clickable_text': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['settings_tab_clickable_text'], ffi.NULL, 0),
             'save_and_quit_prompt': load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['save_and_quit_prompt'], ffi.NULL, 0),
             'master_volume': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['master_volume'], ffi.NULL, 0),
+            'keyboard_bindings_note': load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['keyboard_bindings_note'], ffi.NULL, 0),
+            'keyboard_bindings_prompt': load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['keyboard_bindings_prompt'], ffi.NULL, 0),
             'debugging': load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['debugging'], ffi.NULL, 0),
             }
 
@@ -390,10 +457,9 @@ class Game:
         self.pause_start = 0.0
         self.total_paused = 0.0
         # input
-        set_exit_key(0)
         self.input_cooldown_timer = Timer(self, INPUT_COOLDOWN_AFTER_SWITCHING_GAME_MODE, False, False, False)
         self.keyboard_bindings = dict(DEFAULT_KEYBOARD_BINDINGS)
-        self.controller_bindings = dict(DEFAULT_CONTROLLER_BINDINGS)
+        self.controller_bindings = dict(CONTROLLER_BINDINGS)
         # audio
         self.current_key: Optional[str] = None
         self.current_track: Music = self.music['title']
@@ -402,20 +468,18 @@ class Game:
         self.title_text = RegularText(self, GAME_NAME, self.fonts['title'], FONT_SIZES['title'], 0, SCREEN_CENTER, COLORS['title_text'], COLORS['title_text_shadow'])
         self.game_over_text = RegularText(self, "Game Over", self.fonts['game_over'], FONT_SIZES['game_over'], 0, SCREEN_CENTER, COLORS['game_over_text'], COLORS['game_over_text_shadow'])
         self.save_and_quit_prompt = RegularText(self, "\t\t\t\t\t\t\t\t\t\tQuit game?\n(Progress is saved automatically.)", self.fonts['save_and_quit_prompt'], FONT_SIZES['save_and_quit_prompt'], 0, SCREEN_CENTER, COLORS['save_and_quit_prompt'])
-        self.audio_text = RegularText(self, "-\t\tMaster Volume\t\t+", self.fonts['master_volume'], FONT_SIZES['master_volume'], 0, (SCREEN_CENTER[0], SCREEN_CENTER[1] - 100), COLORS['master_volume'])
+        self.audio_text = RegularText(self, "-\t\tMaster Volume\t\t+", self.fonts['master_volume'], FONT_SIZES['master_volume'], 0, (SCREEN_CENTER[0], SCREEN_CENTER[1] - 100), COLORS['pause_menu_button'], COLORS['pause_menu_button_shadow'])
+        self.keyboard_bindings_note = RegularText(self, "Keyboard only!", self.fonts['keyboard_bindings_note'], FONT_SIZES['keyboard_bindings_note'], 0, (SCREEN_WIDTH - 175, SCREEN_HEIGHT - 65), COLORS['keyboard_bindings_note'])
+        self.keyboard_bindings_prompt = RegularText(self, "...", self.fonts['keyboard_bindings_prompt'], FONT_SIZES['keyboard_bindings_prompt'], 0, (SCREEN_CENTER[0], SCREEN_CENTER[1] + 200), COLORS['keyboard_bindings_prompt'])
 
     def save_settings(self) -> None:
         current_process = "Saving settings"
         save_data = load_file(self.SETTINGS_FILE, current_process)
 
-        current_kb = {k: v for k, v in self.keyboard_bindings.items() if k not in NON_REMAPPABLE_ACTIONS}
-        current_ctrl = {k: v for k, v in self.controller_bindings.items() if k not in NON_REMAPPABLE_ACTIONS}
+        current_kb = {k: v for k, v in self.keyboard_bindings.items() if k in REMAPPABLE_ACTIONS}
 
         save_data['master_volume'] = self.master_volume
-        save_data['keybindings'] = {
-                    'keyboard': current_kb,
-                    'controller': current_ctrl
-                }
+        save_data['keyboard_bindings'] = current_kb
 
         save_file(self.SETTINGS_FILE, save_data, current_process)
 
@@ -428,11 +492,8 @@ class Game:
     def load_settings(self):
         data = load_file(self.SETTINGS_FILE, "Loading settings")
         self.master_volume: float = float(data.get('master_volume', MASTER_VOLUME))
-        if 'keybindings' in data:
-            if 'keyboard' in data['keybindings']:
-                self.keyboard_bindings.update(data['keybindings']['keyboard'])
-            if 'controller' in data['keybindings']:
-                self.controller_bindings.update(data['keybindings']['controller'])
+        if 'keyboard_bindings' in data:
+            self.keyboard_bindings.update(data['keyboard_bindings'])
 
     def check_joystick_dead_zone(self, axis: float) -> int:
         if not abs(axis) > CONTROLLER_DEAD_ZONE:

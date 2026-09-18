@@ -37,19 +37,21 @@ ENEMY_ANIMATION_SPEED: float = 0.05
 # --- GRAPHICS ---
 COLORS: dict[str, Color] = {
     'title_text': Color(10,70,255,255),
-    'title_text_shadow': WHITE,
+    'title_text_shadow': RAYWHITE,
     'pause_menu_background': Color(174,203,255,220),
     'pause_menu_heading': Color(10,70,255,255),
-    'pause_menu_button': Color(10,70,255,255),
+    'pause_menu_button': Color(0,150,255,255),
     'pause_menu_button_hovered': RED,
+    'pause_menu_button_shadow': BLACK,
     'game_over_text': RED,
     'game_over_text_shadow': DARKPURPLE,
     'save_and_quit_prompt': BLACK,
-    'master_volume': Color(10,70,255,255),
     'master_volume_rect': RAYWHITE,
     'master_volume_rect_hovered': Color(252,96,96,255),
     'master_volume_rect_outline': Color(144,87,52,255),
-    'master_volume_line': BLACK
+    'master_volume_line': BLACK,
+    'keyboard_bindings_note': Color(10,70,255,255),
+    'keyboard_bindings_prompt': PURPLE,
 }
 
  # fonts
@@ -58,8 +60,10 @@ FONT_SIZES: dict[str, int] = {
     'game_over': 105,
     'menu_heading': 80,
     'settings_tab_clickable_text': 60,
-    'save_and_quit_prompt': 65,
+    'save_and_quit_prompt': 70,
     'master_volume': 70,
+    'keyboard_bindings_prompt': 70,
+    'keyboard_bindings_note': 40,
     'debugging': 30,
 }
 
@@ -92,42 +96,52 @@ PITCH_VARIATION_PLAYER_HURT: float = 0.2
 PITCH_VARIATION_GRASS_CUT: float = 0.2
 
 # --- INPUT ---
-NON_REMAPPABLE_ACTIONS: Set[str] = {'toggle_fullscreen', 'controller_menu_back', 'open_inventory', 'open_map', 'switch_menu_tab_right', 'switch_menu_tab_left', 'menu_move_left', 'menu_move_right', 'menu_move_up', 'menu_move_down', 'confirm'}
+
+KEY_TO_NAME: dict[int, str] = {val: var_name.replace('KEY_', '').replace("_", " ").title() 
+                               for var_name, val in list(globals().items())
+                               if var_name.startswith('KEY_') and isinstance(val, int)}# key to string conversion
 
 DEFAULT_KEYBOARD_BINDINGS: dict[str, int] = {
                             'move_left': KEY_A,
                             'move_right': KEY_D,
                             'move_up': KEY_W,
                             'move_down': KEY_S,
-                            'menu_move_left': KEY_LEFT,
-                            'menu_move_right': KEY_RIGHT,
-                            'menu_move_up': KEY_UP,
-                            'menu_move_down': KEY_DOWN,
                             'item_slot_1': KEY_ENTER,
                             'item_slot_2': KEY_SPACE,
-                            'open_inventory': KEY_ESCAPE,
-                            'open_map': KEY_BACKSPACE,
-                            'switch_menu_tab_right': KEY_E,
-                            'switch_menu_tab_left': KEY_Q,
-                            'confirm': KEY_ENTER,
+                            'open_inventory': KEY_TAB,
+                            'open_map': KEY_M,
+                            'menu_move_left': KEY_LEFT,# non-remappable
+                            'menu_move_right': KEY_RIGHT, # non-remappable
+                            'menu_move_up': KEY_UP, # non-remappable
+                            'menu_move_down': KEY_DOWN, # non-remappable                      
+                            'switch_menu_tab_right': KEY_E, # non-remappable
+                            'switch_menu_tab_left': KEY_Q, # non-remappable
+                            'confirm': KEY_ENTER, # non-remappable
+                            'menu_back': KEY_ESCAPE, # non-remappable
                             'fullscreen': KEY_F11} # keyboard only
 
-DEFAULT_CONTROLLER_BINDINGS: dict[str, int] = {
+REMAPPABLE_ACTIONS: Set[str] = {'move_left', 'move_right', 'move_up', 'move_down', 'item_slot_1', 'item_slot_2', 'open_inventory', 'open_map'}
+NON_REMAPPABLE_KEYS: Set[int] = {DEFAULT_KEYBOARD_BINDINGS['fullscreen'], KEY_RIGHT_SUPER, KEY_LEFT_SUPER}
+NON_MAPPABLE_KEYS_TO_PAUSE: Set[int] = {DEFAULT_KEYBOARD_BINDINGS[key] for key in ('fullscreen', 'menu_move_left', 'menu_move_right', 'menu_move_up', 'menu_move_down', 'switch_menu_tab_right', 'switch_menu_tab_left')}
+
+CONTROLLER_BINDINGS: dict[str, int] = {
                             'move_left': GAMEPAD_BUTTON_LEFT_FACE_LEFT,
                             'move_right': GAMEPAD_BUTTON_LEFT_FACE_RIGHT,
                             'move_up': GAMEPAD_BUTTON_LEFT_FACE_UP,
                             'move_down': GAMEPAD_BUTTON_LEFT_FACE_DOWN,
-                            'menu_move_left': GAMEPAD_BUTTON_LEFT_FACE_LEFT,
-                            'menu_move_right': GAMEPAD_BUTTON_LEFT_FACE_RIGHT,
-                            'menu_move_up': GAMEPAD_BUTTON_LEFT_FACE_UP,
-                            'menu_move_down': GAMEPAD_BUTTON_LEFT_FACE_DOWN,
                             'item_slot_1': GAMEPAD_BUTTON_RIGHT_FACE_DOWN,
                             'item_slot_2': GAMEPAD_BUTTON_RIGHT_FACE_RIGHT,
                             'open_inventory': GAMEPAD_BUTTON_MIDDLE_RIGHT,
                             'open_map': GAMEPAD_BUTTON_MIDDLE_LEFT,
                             'switch_menu_tab_right': GAMEPAD_BUTTON_RIGHT_TRIGGER_1,
                             'switch_menu_tab_left': GAMEPAD_BUTTON_LEFT_TRIGGER_1,
+                            'menu_move_left': GAMEPAD_BUTTON_LEFT_FACE_LEFT,
+                            'menu_move_right': GAMEPAD_BUTTON_LEFT_FACE_RIGHT,
+                            'menu_move_up': GAMEPAD_BUTTON_LEFT_FACE_UP,
+                            'menu_move_down': GAMEPAD_BUTTON_LEFT_FACE_DOWN,                            
                             'confirm': GAMEPAD_BUTTON_RIGHT_FACE_RIGHT,
-                            'controller_menu_back': GAMEPAD_BUTTON_RIGHT_FACE_DOWN} # controller only
+                            'menu_back': GAMEPAD_BUTTON_RIGHT_FACE_DOWN}
 
 CONTROLLER_DEAD_ZONE: Annotated[float, (0.0-1.0)] = 0.25
+
+print(KEY_TO_NAME)

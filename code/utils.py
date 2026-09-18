@@ -88,9 +88,13 @@ class RegularText:
         if self.shadow_color:
             draw_text_ex(self.font, self.text, Vector2(self.pos.x + 2, self.pos.y + 2), self.font_size, 0, self.shadow_color)    
 
-    def draw(self):
+    def draw(self) -> None:
         self.draw_shadow()
         draw_text_ex(self.font, self.text, self.pos, self.font_size, 0, self.color)
+
+    def update_position_and_size(self, pos: tuple[float, float]) -> None:
+        self.text_size = measure_text_ex(self.font, self.text, self.font_size, self.font_spacing)
+        self.pos = Vector2(pos[0] - self.text_size.x/2, pos[1] - self.text_size.y/2)
 
 class ClickableText(RegularText):
     """Clickable text button that changes color when hovered."""
