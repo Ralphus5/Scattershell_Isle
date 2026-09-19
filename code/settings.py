@@ -13,14 +13,15 @@ INPUT_COOLDOWN_AFTER_SWITCHING_GAME_MODE: float = 0.1
 
 # --- GAMEPLAY ---
 ENTITY_DATA: dict[str, dict[str, int|float]] = {
-    'player': {'health': 100, 'speed': 230, 'damage': 15, 'attack_cooldown': 0.25, 'knockback': 4, 'hitbox_offset_v': 15, 'hitbox_offset_h': 3},
-    'bamboo': {'health': 50, 'speed': 120, 'damage': 20, 'attack_cooldown': 0.1, 'knockback': 5, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 300, 'attack_radius': 90},
-    'spirit': {'health': 50, 'speed': 130, 'damage': 20, 'attack_cooldown': 0, 'knockback': 5, 'hitbox_offset_v': 7, 'hitbox_offset_h': 8, 'attack_speed': 200, 'notice_radius': 300, 'attack_radius': 90},
-    'squid': {'health': 50, 'speed': 120, 'damage': 20, 'attack_cooldown': 0.1, 'knockback': 5, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 300, 'attack_radius': 90},
-    'raccoon': {'health': 50, 'speed': 120, 'damage': 20, 'attack_cooldown': 0.4, 'knockback': 1, 'hitbox_offset_v': 70, 'hitbox_offset_h': 60, 'attack_speed': 200, 'notice_radius': 500, 'attack_radius': 160},
+    'player': {'health': 120, 'speed': 200, 'damage': 15, 'attack_cooldown': 0.25, 'knockback': 3, 'hitbox_offset_v': 15, 'hitbox_offset_h': 3},
+    'bamboo': {'health': 50, 'speed': 110, 'damage': 20, 'attack_cooldown': 0.1, 'knockback': 4, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
+    'spirit': {'health': 50, 'speed': 125, 'damage': 20, 'attack_cooldown': 0, 'knockback': 4, 'hitbox_offset_v': 7, 'hitbox_offset_h': 8, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
+    'squid': {'health': 50, 'speed': 110, 'damage': 20, 'attack_cooldown': 0.1, 'knockback': 4, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
+    'raccoon': {'health': 100, 'speed': 110, 'damage': 40, 'attack_cooldown': 0.4, 'knockback': 1, 'hitbox_offset_v': 70, 'hitbox_offset_h': 60, 'attack_speed': 200, 'notice_radius': 450, 'attack_radius': 160},
 }
 
 # animations
+HURT_FLICKER_FREQUENCY: float = 70.0
 HURT_TIMES: dict[str, float] = {
     'Player': 1.2,
     'Enemy': ENTITY_DATA['player']['attack_cooldown']
@@ -33,6 +34,9 @@ KNOCKBACK_TIMES: dict[str, float] = {
 
 PLAYER_ANIMATION_SPEED: float = 0.025
 ENEMY_ANIMATION_SPEED: float = 0.05
+PARTICLES_ANIMATION_SPEED: float = 14.0
+
+GRASS_PARTICLE_OFFSET: float = 50.0
 
 # --- GRAPHICS ---
 COLORS: dict[str, Color] = {
@@ -66,6 +70,8 @@ FONT_SIZES: dict[str, int] = {
     'keyboard_bindings_note': 40,
     'debugging': 30,
 }
+
+MENU_BUTTON_HOVER_SIZE_INCREASE: int = 7
 
 # --- AUDIO ---
 # user volume settings
@@ -143,5 +149,3 @@ CONTROLLER_BINDINGS: dict[str, int] = {
                             'menu_back': GAMEPAD_BUTTON_RIGHT_FACE_DOWN}
 
 CONTROLLER_DEAD_ZONE: Annotated[float, (0.0-1.0)] = 0.25
-
-print(KEY_TO_NAME)

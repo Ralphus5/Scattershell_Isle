@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="64" tileheight="64" infinite="0" nextlayerid="9" nextobjectid="85">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="64" tileheight="64" infinite="0" nextlayerid="9" nextobjectid="119">
  <editorsettings>
   <export target="../../assets/graphics/maps/testMap.csv" format="csv"/>
  </editorsettings>
- <tileset firstgid="1" name="test-tiles" tilewidth="64" tileheight="64" tilecount="64" columns="8">
+ <tileset firstgid="1" name="floor" tilewidth="64" tileheight="64" tilecount="64" columns="8">
   <image source="../../graphics/tilesets/floor.png" width="512" height="512"/>
  </tileset>
  <tileset firstgid="65" source="objects.tsx"/>
@@ -85,11 +85,11 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,94,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,94,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -158,21 +158,24 @@
   <object id="31" name="start_area" type="player" gid="69" x="960" y="832" width="52" height="56"/>
   <object id="32" name="cave" type="player" gid="69" x="511.046" y="1505.72" width="52" height="56"/>
   <object id="33" name="column" type="tile" gid="68" x="464" y="384" width="64" height="128"/>
-  <object id="34" name="column" type="tile" gid="68" x="272" y="256" width="64" height="128"/>
+  <object id="34" name="column" type="tile" gid="68" x="272" y="256" width="64" height="128">
+   <properties>
+    <property name="version" type="int" value="0"/>
+   </properties>
+  </object>
   <object id="37" name="column" type="tile" gid="68" x="496" y="1440" width="64" height="128"/>
   <object id="38" name="column" type="tile" gid="68" x="656" y="1632" width="64" height="128"/>
   <object id="39" name="column" type="tile" gid="68" x="336" y="1632" width="64" height="128"/>
   <object id="40" name="column" type="tile" gid="68" x="496" y="1824" width="64" height="128"/>
-  <object id="41" name="grass" type="tile" gid="71" x="960" y="1344" width="64" height="64"/>
-  <object id="42" name="grass" type="tile" gid="71" x="1024" y="1408" width="64" height="64"/>
-  <object id="43" name="grass" type="tile" gid="70" x="1152" y="1408" width="64" height="64"/>
-  <object id="44" name="grass" type="tile" gid="71" x="1024" y="1344" width="64" height="64"/>
+  <object id="41" name="grass" type="tile" gid="71" x="1024" y="1344" width="64" height="56"/>
+  <object id="42" name="grass" type="tile" gid="71" x="1024" y="1408" width="64" height="56"/>
+  <object id="43" name="grass" type="tile" gid="70" x="1152" y="1344" width="64" height="64"/>
   <object id="45" name="grass" type="tile" gid="70" x="1216" y="1408" width="64" height="64"/>
   <object id="46" name="grass" type="tile" gid="70" x="1280" y="1408" width="64" height="64"/>
   <object id="47" name="grass" type="tile" gid="70" x="768" y="1280" width="64" height="64"/>
-  <object id="48" name="grass" type="tile" gid="71" x="1536" y="1472" width="64" height="64"/>
-  <object id="49" name="grass" type="tile" gid="71" x="1536" y="1536" width="64" height="64"/>
-  <object id="50" name="grass" type="tile" gid="71" x="1536" y="1408" width="64" height="64"/>
+  <object id="48" template="grass.tx" name="grass" type="tile" x="1536" y="1472"/>
+  <object id="49" template="grass.tx" name="grass" type="tile" x="1536" y="1536"/>
+  <object id="50" template="grass.tx" name="grass" type="tile" x="1536" y="1408"/>
   <object id="60" name="rock" type="tile" gid="66" x="1472" y="1600" width="64" height="64"/>
   <object id="61" name="rock" type="tile" gid="67" x="1536" y="1600" width="64" height="64"/>
   <object id="63" name="rock" type="tile" gid="66" x="960" y="1472" width="64" height="64"/>
@@ -183,6 +186,29 @@
   <object id="79" name="raccoon" type="enemy" gid="74" x="177" y="566" width="240" height="240"/>
   <object id="80" name="squid" type="enemy" gid="75" x="1387" y="581" width="64" height="64"/>
   <object id="81" name="squid" type="enemy" gid="75" x="680" y="204" width="64" height="64"/>
+  <object id="86" template="grass.tx" name="grass" type="tile" x="960" y="1408"/>
+  <object id="88" name="grass" type="tile" gid="71" x="960" y="1344" width="64" height="56"/>
+  <object id="89" name="grass" type="tile" gid="71" x="896" y="1408" width="64" height="56"/>
+  <object id="90" name="grass" type="tile" gid="71" x="896" y="1536" width="64" height="56"/>
+  <object id="92" name="grass" type="tile" gid="71" x="960" y="1536" width="64" height="56"/>
+  <object id="93" name="grass" type="tile" gid="71" x="1024" y="1536" width="64" height="56">
+   <properties>
+    <property name="version" type="int" value="1"/>
+   </properties>
+  </object>
+  <object id="94" name="grass" type="tile" gid="71" x="1024" y="1472" width="64" height="56"/>
+  <object id="95" name="grass" type="tile" gid="71" x="1088" y="1536" width="64" height="56"/>
+  <object id="96" name="grass" type="tile" gid="71" x="1088" y="1600" width="64" height="56"/>
+  <object id="97" name="grass" type="tile" gid="71" x="1024" y="1600" width="64" height="56"/>
+  <object id="98" name="grass" type="tile" gid="71" x="960" y="1600" width="64" height="56"/>
+  <object id="102" name="grass" type="tile" gid="71" x="896" y="1344" width="64" height="56"/>
+  <object id="103" template="grass.tx" name="grass" type="tile" x="512" y="1216"/>
+  <object id="104" template="grass.tx" name="grass" type="tile" x="960" y="320"/>
+  <object id="106" template="grass.tx" name="grass" type="tile" x="1408" y="1344"/>
+  <object id="107" template="grass.tx" name="grass" type="tile" x="1280" y="1536"/>
+  <object id="109" name="rock" type="tile" gid="67" x="896" y="1792" width="64" height="64"/>
+  <object id="110" name="rock" type="tile" gid="67" x="896" y="1792" width="64" height="64"/>
+  <object id="111" name="rock" type="tile" gid="67" x="1024" y="1792" width="64" height="64"/>
  </objectgroup>
  <objectgroup id="5" name="collision_shapes">
   <object id="15" name="collsion_box" type="collision" x="1920" y="2.66663" width="61.3333" height="1964" visible="0"/>

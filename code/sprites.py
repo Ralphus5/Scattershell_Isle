@@ -13,14 +13,18 @@ class Sprite:
     def y_sort_pos(self) -> float:
         return self.pos.y + self.texture.height
 
+    @property
+    def center(self) -> Vector2:
+        return Vector2(self.pos.x + self.texture.width/2, self.pos.y + self.texture.height/2)
+
     def update(self, dt: float) -> None:
         pass
 
     def draw(self):
         draw_texture_ex(self.texture, self.pos, 0, 1, WHITE)
 
-    def set_position(self, pos: Vector2) -> None:
-        self.pos = Vector2(pos.x, pos.y)
+    def set_position(self, pos: Vector2|tuple[float, float]) -> None:
+        self.pos = Vector2(pos[0], pos[1]) if isinstance(pos, tuple) else pos
         self.hitbox.x = self.pos.x
         self.hitbox.y = self.pos.y
 
@@ -43,12 +47,8 @@ class Entity(Sprite):
         self.half_hitbox_offset_horizontal = ENTITY_DATA[self.obj_name]['hitbox_offset_h'] / 2
         self.hitbox = inflate_rect(Rectangle(self.pos.x + self.half_hitbox_offset_horizontal, self.pos.y + self.half_hitbox_offset_vertical, self.texture.width, self.texture.height), -ENTITY_DATA[self.obj_name]['hitbox_offset_h'], -ENTITY_DATA[self.obj_name]['hitbox_offset_v'])
 
-    @property
-    def center(self) -> Vector2:
-        return Vector2(self.pos.x + self.texture.width/2, self.pos.y + self.texture.height/2)
-
-    def set_position(self, pos: Vector2) -> None:
-        self.pos = Vector2(pos.x, pos.y)
+    def set_position(self, pos: Vector2|tuple[float, float]) -> None:
+        self.pos = Vector2(pos[0], pos[1]) if isinstance(pos, tuple) else pos
         self.hitbox.x = self.pos.x + self.half_hitbox_offset_horizontal
         self.hitbox.y = self.pos.y + self.half_hitbox_offset_vertical
 
@@ -61,7 +61,7 @@ class Entity(Sprite):
             
     def draw(self):
         if self.hurt_timer.active:
-            draw_texture_ex(self.texture, self.pos, 0, 1, Color(255, 255, 255, max(20, int(sin(self.game.play_time * 70) % 255))))
+            draw_texture_ex(self.texture, self.pos, 0, 1, Color(255, 255, 255, max(20, int(sin(self.game.play_time * HURT_FLICKER_FREQUENCY) % 255))))
         else:
             draw_texture_ex(self.texture, self.pos, 0, 1, WHITE)
 
@@ -70,14 +70,16 @@ class Entity(Sprite):
             if self.obj_name == 'player':
                 self.game.requested_state = 'game_over'
             self.game.level.sprites.remove(self)
+            self.game.level.animation_player.create_particles(f"{self.obj_name}_death", self.center)
 
     def hurt(self, damage: int, knock_back_directon: Vector2) -> None:
         if not self.hurt_timer.active:
+            self.speed = ENTITY_DATA[self.obj_name]['speed']
             self.health -= damage
             self.check_death()
             self.hurt_timer.activate()
             self.knockback_timer.activate()
-            self.direction = vector2_multiply(knock_back_directon, Vector2(-ENTITY_DATA[self.obj_name]['knockback'],-ENTITY_DATA[self.obj_name]['knockback']))
+            self.direction = vector2_multiply_value(knock_back_directon, -ENTITY_DATA[self.obj_name]['knockback'])
 
     def attack(self):
         pass
@@ -166,4 +168,39 @@ class Zone():
         elif self.shape_name == 'ellipse':
             self.shape = Circle(Vector2(pos.x + width/2, pos.y + height/2), width/2)
 
-        
+class AnimationPlayer:
+    def __init__(self, game: Game) -> None:
+        self.game = game
+
+    def create_grass_particles(self, pos: Vector2|tuple[float, float]) -> None:
+        animation_frames = choice(self.game.particle_images['leaf'])
+        assert isinstance(animation_frames, list)
+        flip_x = uniform(0, 1) >= 0.5
+        particle = ParticleEffect(self.game, 'leaf', pos, cast(list[Texture], animation_frames), flip_x)
+        particle.set_position(Vector2(particle.pos.x, particle.pos.y - GRASS_PARTICLE_OFFSET))
+        self.game.level.particle_sprites.append(particle)
+
+    def create_particles(self, animation_type: str, pos: Vector2|tuple[float, float]) -> None:
+        animation_frames = self.game.particle_images[animation_type]
+        self.game.level.particle_sprites.append(ParticleEffect(self.game, animation_type, pos, cast(list[Texture], animation_frames)))
+
+class ParticleEffect(Sprite):
+    def __init__(self, game: Game, obj_name: str, pos: Vector2|tuple[float, float], textures: list[Texture], flip_x: bool = False) -> None:
+        super().__init__(game, obj_name, Vector2(pos[0], pos[1]) if isinstance(pos, tuple) else pos, textures[0])
+        self.pos = vector2_subtract(self.pos, Vector2(abs(self.texture.width)/2, abs(self.texture.height)/2))
+        self.animation_frames = textures
+        self.animation_index: float = 0.0
+        self.flip_x = flip_x
+
+    def draw(self) -> None:
+        w, h = self.texture.width, self.texture.height
+        source = Rectangle(0, 0, -w if self.flip_x else w, h)
+        dest = Rectangle(self.pos.x, self.pos.y, w, h)
+        draw_texture_pro(self.texture, source, dest, Vector2(0, 0), 0, WHITE)
+
+    def update(self, dt: float) -> None:
+        self.animation_index += PARTICLES_ANIMATION_SPEED * dt
+        if self.animation_index >= len(self.animation_frames):
+            self.game.level.particle_sprites.remove(self)
+        else:
+            self.texture = self.animation_frames[int(self.animation_index)]

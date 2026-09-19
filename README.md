@@ -10,7 +10,7 @@ You are stranded on a curious Island harboring a multitude of shells. There are 
 
 ## 🕹️ Controls
 
-Keybindings are remappable. You walk with WSDA on keyboard and with d-pad or left stick on controller. Press enter or right-most right face button for attack.
+Keybindings are remappable for the keyboard. By default you walk with WSDA on keyboard and with d-pad or left stick on controller. Press enter or bottom most right face controller button for attack.
 
 ---
 

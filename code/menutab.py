@@ -33,14 +33,14 @@ class MenuTab:
                         self.clickable_entities.append(ClickableText(game, action[1].replace("_", " ").title(), self.game.fonts['settings_tab_clickable_text'], FONT_SIZES['settings_tab_clickable_text'], 0, (350 + 580 * int(action[0] / 4), y - 280 * int(action[0] / 4)), COLORS['pause_menu_button'], COLORS['pause_menu_button_hovered'], COLORS['pause_menu_button_shadow']))
                         y += 70
                 self.clickable_entities.append(ClickableText(game, "Back", game.fonts['settings_tab_clickable_text'], FONT_SIZES['settings_tab_clickable_text'], 0, (SCREEN_CENTER[0] , SCREEN_CENTER[1] + 270), COLORS['pause_menu_button'], COLORS['pause_menu_button_hovered'], COLORS['pause_menu_button_shadow']))
-                self.clickable_entities.sort(key=lambda x: x.pos.y)
+                self.clickable_entities.sort(key=attrgetter('pos.y'))
             case "Save & Quit":
                 self.static_texts.append(self.game.save_and_quit_prompt)
                 for text in enumerate(["Quit", "No"]):
                     self.clickable_entities.append(ClickableText(game, text[1], game.fonts['settings_tab_clickable_text'], FONT_SIZES['settings_tab_clickable_text'], 0, ((SCREEN_CENTER[0] - 200) + text[0] * 400, SCREEN_CENTER[1] + 200), COLORS['pause_menu_button'], COLORS['pause_menu_button_hovered'], COLORS['pause_menu_button_shadow']))
         self.menu_heading_size = measure_text_ex(self.game.fonts['menu_heading'], self.menu_name, FONT_SIZES['menu_heading'], 0)
 
-    def update(self, dt: float) -> None:        
+    def update(self) -> None:
         self.draw()
         if not self.clickable_entities:
             return
@@ -71,7 +71,7 @@ class MenuTab:
                     case _:
                         if entity.text.replace(" ", "_").lower() in REMAPPABLE_ACTIONS:
                             self.game.keyboard_bindings_prompt.text = "Press key to assign...(ESC to cancel)"
-                            self.game.keyboard_bindings_prompt.update_position_and_size((SCREEN_CENTER[0], SCREEN_CENTER[1] + 200))
+                            self.game.keyboard_bindings_prompt.set_position_and_size()
                         elif entity.text == "Reset to defaults":
                             self.game.keyboard_bindings.update(DEFAULT_KEYBOARD_BINDINGS)
                             self.game.save_settings()

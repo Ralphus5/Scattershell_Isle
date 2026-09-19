@@ -12,7 +12,7 @@ def debug(game: Game, font: Font, info, pos_x: int = 10, pos_y: int = 10) -> Non
     
     begin_texture_mode(game.virtual_screen)
     draw_rectangle_rec(rectangle, BLACK)
-    draw_text_ex(font, info_text, Vector2(pos_x, pos_y), font_size, FONT_SIZES['debugging'], WHITE)
+    draw_text_ex(font, info_text, Vector2(pos_x, pos_y), FONT_SIZES['debugging'], 1, WHITE)
     end_texture_mode()
 
 def draw_grid_2d(width: int, height: int, cell_size: int, color: Color = LIGHTGRAY):
@@ -73,33 +73,40 @@ class Timer:
                     self.activate()
 
 class RegularText:
-    def __init__(self, game: Game, text: str, font: Font, font_size: int, font_spacing: int, pos: tuple[float, float], color: Color, shadow_color: Optional[Color] = None) -> None:
+    def __init__(self, game: Game, text: str, font: Font, font_size: int, font_spacing: int, pos: tuple[float, float] | Vector2, color: Color, shadow_color: Optional[Color] = None) -> None:
         self.game = game
         self.font = font
+        self.original_font_size = font_size
         self.font_size = font_size
         self.font_spacing = font_spacing
         self.text = text
         self.color = color
-        self.text_size = measure_text_ex(self.font, self.text, self.font_size, self.font_spacing)
-        self.pos = Vector2(pos[0] - self.text_size.x/2, pos[1] - self.text_size.y/2)
         self.shadow_color = shadow_color
+        self.center = Vector2(pos[0], pos[1]) if isinstance(pos, tuple) else pos
+        self.set_position_and_size()
+
+    def set_position_and_size(self, new_font_size: Optional[int] = None, new_center: Optional[Vector2 | tuple[float, float]] = None) -> None:
+        """Recalculates text dimensions for current self.text and recenters top-left self.pos around self.center."""
+        if new_center is not None:
+            self.center = Vector2(new_center[0], new_center[1]) if isinstance(new_center, tuple) else new_center
+
+        self.font_size = new_font_size if new_font_size is not None else self.original_font_size
+        self.text_size = measure_text_ex(self.font, self.text, self.font_size, self.font_spacing)
+        
+        # Top-left rendering position derived from center anchor and current text dimensions
+        self.pos = vector2_subtract(self.center, vector2_multiply_value(self.text_size, 0.5))
 
     def draw_shadow(self) -> None:
         if self.shadow_color:
-            draw_text_ex(self.font, self.text, Vector2(self.pos.x + 2, self.pos.y + 2), self.font_size, 0, self.shadow_color)    
+            draw_text_ex(self.font, self.text, vector2_add_value(self.pos, 2), self.font_size, 0, self.shadow_color)    
 
     def draw(self) -> None:
         self.draw_shadow()
         draw_text_ex(self.font, self.text, self.pos, self.font_size, 0, self.color)
 
-    def update_position_and_size(self, pos: tuple[float, float]) -> None:
-        self.text_size = measure_text_ex(self.font, self.text, self.font_size, self.font_spacing)
-        self.pos = Vector2(pos[0] - self.text_size.x/2, pos[1] - self.text_size.y/2)
-
 class ClickableText(RegularText):
-    """Clickable text button that changes color when hovered."""
 
-    def __init__(self, game: Game, text: str, font: Font, font_size: int, font_spacing: int, pos: tuple[float, float], color: Color, hover_color: Color, shadow_color: Optional[Color] = None) -> None:
+    def __init__(self, game: Game, text: str, font: Font, font_size: int, font_spacing: int, pos: tuple[float, float] | Vector2, color: Color, hover_color: Color, shadow_color: Optional[Color] = None) -> None:
         super().__init__(game, text, font, font_size, font_spacing, pos, color, shadow_color)
         self.hover_color = hover_color
         self.hovered = False
@@ -112,13 +119,17 @@ class ClickableText(RegularText):
         self.hovered = self.controller_hovered
         self.hover_changed = (self.hovered != prev_hover)
 
-        if self.hover_changed and self.hovered:
-            self.game.play_sfx('menu_button_hovered')
+        if self.hover_changed:  
+            if self.hovered:
+                self.set_position_and_size(self.original_font_size + MENU_BUTTON_HOVER_SIZE_INCREASE)
+                self.game.play_sfx('menu_button_hovered')
+            else:
+                self.set_position_and_size()
 
         if self.clicked:
             self.game.play_sfx('menu_button_pressed')
 
-    def draw(self):
+    def draw(self) -> None:
         self.draw_shadow()
         current_color = self.hover_color if self.hovered else self.color
         draw_text_ex(self.font, self.text, self.pos, self.font_size, self.font_spacing, current_color)
@@ -136,6 +147,9 @@ class Circle:
     def y(self) -> float:
         return self.center.y
 
+def vector2_multiply_value(vector: Vector2, value: float) -> Vector2:
+    return Vector2(vector.x * value, vector.y * value)
+
 def inflate_rect(rect: Rectangle, width: float, height: float) -> Rectangle:
     """Vergrößert/Verkleinert ein Rectangle zentriert (wie rect.inflate in Pygame)"""
     return Rectangle(
@@ -146,11 +160,10 @@ def inflate_rect(rect: Rectangle, width: float, height: float) -> Rectangle:
 
 def import_image_folder(path: str) -> list[Texture]:
     texture_list: list[Texture] = []
-    for _,__,image_files in os.walk(path):
-        for image in image_files:
-            full_path = join(path, image)
-            texture = load_texture(full_path)
-            texture_list.append(texture)
+    with os.scandir(path) as entries:
+        files = sorted([e.path for e in entries if e.is_file() and e.name.endswith('.png')])
+        for full_path in files:
+            texture_list.append(load_texture(full_path))
     return texture_list
 
 def load_file(file: str, process: str = '') -> dict:

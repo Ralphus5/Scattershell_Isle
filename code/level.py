@@ -1,9 +1,10 @@
 """Functions are sorted according to execution order."""
-from menu import *
+from menutab import *
 
 class Level:
     def __init__(self, game: Game, map: str) -> None:
         self.game = game
+        self.animation_player = AnimationPlayer(game)
         self.player = Player(self.game, Vector2(0,0), self.game.entity_images['player']['down'])
         self.create_map(map, self.game.last_saved_current_map)
         self.create_camera()
@@ -13,6 +14,7 @@ class Level:
         self.current_map = map
         self.game.play_music(self.current_map)
         self.sprites: list[Sprite] = []
+        self.particle_sprites: list[ParticleEffect] = []
         self.collision_boxes: list[Rectangle] = []
         self.zones: list[Zone] = []
         self.floor_image = self.game.level_images[self.current_map]
@@ -25,6 +27,7 @@ class Level:
         # --- Objects ---
         for obj in self.game.maps[self.current_map].objects:
             pos = Vector2(obj.x, obj.y)
+            tile_properties = self.game.maps[self.current_map].get_tile_properties_by_gid(obj.gid) or {}
 
             # visible tiles
             if obj.visible:
@@ -37,7 +40,7 @@ class Level:
                     case 'enemy':
                         sprite_to_add = Enemy(self.game, obj.name, pos, self.game.entity_images[obj.name]['idle'])
                     case 'tile':
-                        sprite_to_add = Tile(self.game, obj.name, pos, self.game.tile_images[obj.name][obj.properties['version']])
+                        sprite_to_add = Tile(self.game, obj.name, pos, self.game.tile_images[obj.name][obj.properties.get('version', tile_properties.get('version', 1))])
                         self.collision_boxes.append(sprite_to_add.hitbox)
                     case _:
                         print(obj) # DEBUGGING
@@ -82,7 +85,19 @@ class Level:
         self.camera.target = self.camera_target
 
     def run(self, dt: float) -> None:
-        # --- zone transition ---
+        # --- updating ---
+        self.manage_collisions(dt)
+        self.update_sprites(dt)
+        self.set_camera_boundaries()
+
+        # --- drawing ---
+        begin_texture_mode(self.game.virtual_screen)
+        self.draw_sprites()
+        end_texture_mode()
+        self.draw_ui()
+
+    def manage_collisions(self, dt: float) -> None:
+        # --- zone collisions ---
         for zone in self.zones:
             player_hit_zone = False
             if isinstance(zone.shape, type(Rectangle())):
@@ -96,7 +111,7 @@ class Level:
                 self.set_camera_boundaries()
                 return
 
-        # --- hurt collisions ---
+        # --- sprite collisions ---
         for sprite in self.sprites:
             # enemy collides with...
             if isinstance(sprite, Enemy):
@@ -110,7 +125,6 @@ class Level:
                         self.game.play_sfx('enemy_hurt', PITCH_VARIATION_ENEMY_HURT)
                         sprite.hurt(self.player.damage, vector2_normalize(sprite.get_player_distance_direction()[1]))
 
-
             # tile collides with...
             elif isinstance(sprite, Tile):
                 if sprite.obj_name == 'grass':
@@ -120,19 +134,12 @@ class Level:
                             self.game.play_sfx('grass_cut', PITCH_VARIATION_GRASS_CUT)
                             self.sprites.remove(sprite)
                             self.collision_boxes.remove(sprite.hitbox)
-        
-        # --- updating ---
-        self.update_sprites(dt)
-        self.set_camera_boundaries()
-
-        # --- drawing ---
-        begin_texture_mode(self.game.virtual_screen)
-        self.draw_sprites()
-        end_texture_mode()
-        self.draw_ui()
+                            self.animation_player.create_grass_particles(sprite.center)
 
     def update_sprites(self, dt: float) -> None:
         for sprite in self.sprites:
+            sprite.update(dt)
+        for sprite in self.particle_sprites:
             sprite.update(dt)
         self.camera.target = self.camera_target
 
@@ -148,6 +155,9 @@ class Level:
         self.sprites.sort(key=attrgetter('y_sort_pos'))
         for sprite in self.sprites:
             sprite.draw()
+        self.particle_sprites.sort(key=attrgetter('y_sort_pos'))
+        for sprite in self.particle_sprites:
+            sprite.draw()
 
         # hitboxes
         # boxes that are only in self.collison_boxes are green
@@ -155,18 +165,18 @@ class Level:
         # boxes that are only hitboxes from sprites but not in self.collision_boxes are red
         # transition zones are purple
 
-        for collision_box in self.collision_boxes:
-            draw_rectangle_lines_ex(collision_box, 3, GREEN)        
-        for sprite in self.sprites:
-            color = BLUE if sprite.hitbox in self.collision_boxes else RED
-            if sprite.hitbox:
-                draw_rectangle_lines_ex(sprite.hitbox, 3, color)
-        for zone in self.zones:
-            if zone.shape_name == 'rectangle':
-                draw_rectangle_lines_ex(cast(Rectangle,zone.shape), 3, PURPLE)
-            elif zone.shape_name == 'ellipse':
-                circle = cast(Circle, zone.shape)
-                draw_circle_lines_v(circle.center, circle.radius, PURPLE)
+        #for collision_box in self.collision_boxes:
+        #    draw_rectangle_lines_ex(collision_box, 3, GREEN)        
+        #for sprite in self.sprites:
+        #    color = BLUE if sprite.hitbox in self.collision_boxes else RED
+        #    if sprite.hitbox:
+        #        draw_rectangle_lines_ex(sprite.hitbox, 3, color)
+        #for zone in self.zones:
+        #    if zone.shape_name == 'rectangle':
+        #        draw_rectangle_lines_ex(cast(Rectangle,zone.shape), 3, PURPLE)
+        #    elif zone.shape_name == 'ellipse':
+        #        circle = cast(Circle, zone.shape)
+        #        draw_circle_lines_v(circle.center, circle.radius, PURPLE)
 
         end_mode_2d()
 

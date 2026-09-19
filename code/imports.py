@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
 from operator import attrgetter
+from random import choice, uniform, randint
 
 # keys
 from raylib import  KEY_A, KEY_D, KEY_S, KEY_W, KEY_Q, KEY_E, KEY_R, KEY_T, KEY_Z, KEY_U, KEY_I, KEY_O, KEY_P, KEY_F, KEY_G, KEY_H, KEY_J, KEY_K, KEY_L, KEY_Y, KEY_X, KEY_C, KEY_V, KEY_B, KEY_N, KEY_M, KEY_LEFT_SHIFT, KEY_RIGHT_SHIFT, KEY_BACK, KEY_ENTER, KEY_SPACE, KEY_ESCAPE, KEY_TAB, KEY_F11, KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_BACKSPACE, KEY_RIGHT_SUPER, KEY_LEFT_SUPER

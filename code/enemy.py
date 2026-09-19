@@ -22,7 +22,7 @@ class Enemy(Entity):
     def get_player_distance_direction(self) -> tuple[float, Vector2]:
         distance_vector = vector2_subtract(self.game.level.player.center, self.center)
         distance = vector2_length(distance_vector)
-        direction = vector2_normalize(distance_vector) if distance > 0 else Vector2()
+        direction = vector2_normalize(distance_vector) if abs(distance) > 0 else Vector2()
         return (distance, direction)
 
     def update_state(self, distance: float, direction: Vector2) -> None:
@@ -43,6 +43,7 @@ class Enemy(Entity):
         # Priority 3: Transition non-attacking states
         if distance <= self.attack_radius and not self.attack_cooldown_timer.active:
             self.state = 'attack'
+            self.game.level.animation_player.create_particles(f"{self.obj_name}_attack", self.center)
             self.animation_index = 0
         elif distance <= self.notice_radius:
             self.state = 'move'

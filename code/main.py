@@ -18,16 +18,26 @@ class Game:
 # --- GAME LOOP ---
     def run(self) -> None:
         while self.running and not window_should_close():
+            # setup
             dt = get_frame_time()
             self.get_general_input()
             self.change_game_mode()
             if self.current_track: update_music_stream(self.current_track)
             self.update_play_time()
-            self.handle_game_mode(dt)
-            #debug(self, self.fonts['debugging'], f"Play time: {self.play_time:.2f} | Total time: {self.runtime:.2f}")  # DEBUGGING
-            #if hasattr(self, 'level'): 
-                #debug(self, self.fonts['debugging'], f"Sprites : {len(self.level.sprites)}", 10, 65)  # DEBUGGING
-                #debug(self, self.fonts['debugging'], f"Health : {self.level.player.health}", 10, 120)  # DEBUGGING
+            # game mode
+            if self.state == 'title':
+                self.title_screen()
+            elif self.state == 'play':
+                self.level.run(dt)
+            elif self.state == 'pause':
+                self.pause_menu()
+            elif self.state == 'game_over':
+                self.game_over_screen()         
+            # debugging
+            #debug(self, self.fonts['debugging'], f"Play time: {self.play_time:.2f} | Total time: {self.runtime:.2f}")
+            if hasattr(self, 'level'): 
+                debug(self, self.fonts['debugging'], f"Sprites : {len(self.level.sprites)}", 10, 65)
+                #debug(self, self.fonts['debugging'], f"Health : {self.level.player.health}", 10, 120)
             self.draw_virtual_screen()
 
     def get_general_input(self) -> None:
@@ -102,6 +112,7 @@ class Game:
                 if self.keyboard_bindings_prompt.text == "Press key to assign...(ESC to cancel)":
                     if self.input_pressed('menu_back'):
                         self.keyboard_bindings_prompt.text = self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text
+                        self.keyboard_bindings_prompt.set_position_and_size()
                     else:
                         for key in KEY_TO_NAME.keys():
                             if is_key_pressed(key) and not key in NON_REMAPPABLE_KEYS:
@@ -110,7 +121,7 @@ class Game:
                                 else:
                                     self.keyboard_bindings[self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text.replace(" ", "_").lower()] = key
                                     self.keyboard_bindings_prompt.text = self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text
-                                    self.keyboard_bindings_prompt.update_position_and_size((SCREEN_CENTER[0], SCREEN_CENTER[1] + 200))
+                                    self.keyboard_bindings_prompt.set_position_and_size()
                                     self.save_settings()
                                     button_was_reassigned = True
                     
@@ -197,12 +208,19 @@ class Game:
                             for entity in self.current_menu_tab.clickable_entities:
                                 entity.clicked = entity.hovered
 
-                    # update key prompt
-                        self.keyboard_bindings_prompt.text = "..."
+                        # update key prompt
+                        prompt_text = "..."
                         for entity in self.current_menu_tab.clickable_entities:
-                            if entity.hovered and not entity.text in ("Back", "Reset to defaults"):
-                                self.keyboard_bindings_prompt.text = KEY_TO_NAME[self.keyboard_bindings[entity.text.replace(" ", "_").lower()]]
-                        self.keyboard_bindings_prompt.update_position_and_size((SCREEN_CENTER[0], SCREEN_CENTER[1] + 200))
+                            if entity.hovered and entity.text not in ("Back", "Reset to defaults"):
+                                action_key = entity.text.replace(" ", "_").lower()
+                                if action_key in self.keyboard_bindings:
+                                    prompt_text = KEY_TO_NAME[self.keyboard_bindings[action_key]]
+                                break
+
+                        # Recalculate size and center whenever the displayed text changes
+                        if self.keyboard_bindings_prompt.text != prompt_text:
+                            self.keyboard_bindings_prompt.text = prompt_text
+                            self.keyboard_bindings_prompt.set_position_and_size()
 
         # --- GAME OVER ---
         elif self.state == 'game_over':
@@ -253,32 +271,21 @@ class Game:
             self.pause_music()
             self.pause_play_time()
 
-    def handle_game_mode(self, dt) -> None:
-        if self.state == 'title':
-            self.title_screen()
-        elif self.state == 'play':
-            self.level.run(dt)
-        elif self.state == 'pause':
-            self.pause_menu(dt)
-        elif self.state == 'game_over':
-            self.game_over_screen()
-
     def title_screen(self) -> None:
         begin_texture_mode(self.virtual_screen)
         clear_background(BLACK)
         draw_texture(self.background_images['title'], 0, 0, WHITE)
+        self.title_text.set_position_and_size(new_center=(SCREEN_CENTER[0], SCREEN_CENTER[1] + 18 * sin(self.runtime * 3)))
         self.title_text.draw()
         end_texture_mode()
 
-    def pause_menu(self, dt: float) -> None:
+    def pause_menu(self) -> None:
         begin_texture_mode(self.virtual_screen)
         clear_background(BLACK)
         self.level.draw_sprites()
         draw_rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, COLORS['pause_menu_background'])            
-
         if self.current_menu_tab: 
-            self.current_menu_tab.update(dt)
-
+            self.current_menu_tab.update()
         end_texture_mode()
 
     def game_over_screen(self) -> None:
@@ -404,6 +411,30 @@ class Game:
             'raccoon': {f'{state}': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'monsters', 'raccoon', f'{state}')) for state in ['move', 'idle', 'attack']},
         }
 
+        self.particle_images: dict[str, list[Texture]|list[list[Texture]]] = {
+            # attack effects
+            'raccoon_attack': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'raccoon_attack')),
+            'spirit_attack': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'spirit_attack')),
+            'bamboo_attack': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'bamboo_attack')),
+            'squid_attack': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'squid_attack')),
+
+            # death animations
+            'squid_death': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'squid_death')),
+            'raccoon_death': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'raccoon_death')),
+            'spirit_death': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'spirit_death')),
+            'bamboo_death': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'bamboo_death')),
+
+            # grass cut particles
+            'leaf': [
+                    import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'leaf1')),
+                    import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'leaf2')),
+                    import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'leaf3')),
+                    import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'leaf4')),
+                    import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'leaf5')),
+                    import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'leaf6'))
+                    ]
+            }
+
         self.fonts: dict[str, Font] = {
             'title': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['title'], ffi.NULL, 0),
             'game_over': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['game_over'], ffi.NULL, 0),
@@ -470,7 +501,7 @@ class Game:
         self.save_and_quit_prompt = RegularText(self, "\t\t\t\t\t\t\t\t\t\tQuit game?\n(Progress is saved automatically.)", self.fonts['save_and_quit_prompt'], FONT_SIZES['save_and_quit_prompt'], 0, SCREEN_CENTER, COLORS['save_and_quit_prompt'])
         self.audio_text = RegularText(self, "-\t\tMaster Volume\t\t+", self.fonts['master_volume'], FONT_SIZES['master_volume'], 0, (SCREEN_CENTER[0], SCREEN_CENTER[1] - 100), COLORS['pause_menu_button'], COLORS['pause_menu_button_shadow'])
         self.keyboard_bindings_note = RegularText(self, "Keyboard only!", self.fonts['keyboard_bindings_note'], FONT_SIZES['keyboard_bindings_note'], 0, (SCREEN_WIDTH - 175, SCREEN_HEIGHT - 65), COLORS['keyboard_bindings_note'])
-        self.keyboard_bindings_prompt = RegularText(self, "...", self.fonts['keyboard_bindings_prompt'], FONT_SIZES['keyboard_bindings_prompt'], 0, (SCREEN_CENTER[0], SCREEN_CENTER[1] + 200), COLORS['keyboard_bindings_prompt'])
+        self.keyboard_bindings_prompt = RegularText(self, "...", self.fonts['keyboard_bindings_prompt'], FONT_SIZES['keyboard_bindings_prompt'], 0, (SCREEN_CENTER[0], SCREEN_CENTER[1] + 210), COLORS['keyboard_bindings_prompt'])
 
     def save_settings(self) -> None:
         current_process = "Saving settings"
