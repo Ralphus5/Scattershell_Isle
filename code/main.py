@@ -4,53 +4,60 @@ class Game:
     def __init__(self) -> None:
         self.init_raylib()
         self.init_paths()
-        self.import_graphics()
-        self.import_audio()
-        self.import_world_data()
+        self.import_boot_assets()
         self.init_state()
-        self.init_main_menu_texts()
-        self.load_settings()
-        self.load_save_data()
-        self.set_volumes()
-        set_window_icon(self.icon)
+        self.fade_from_black_timer.activate(0.5)
+        self.load_generator = self.import_game_assets_and_saves()
         set_exit_key(0)
 
 # --- GAME LOOP ---
     def run(self) -> None:
-        while self.running and not window_should_close():
-            # setup
+        while self.running and not window_should_close() or self.swipe_to_black_timer.active:
+            # --- Setup ---
             dt = get_frame_time()
+            for timer in self.timers:
+                timer.update()
             self.get_general_input()
             self.change_game_mode()
             if self.current_track: update_music_stream(self.current_track)
             self.update_play_time()
-            # game mode
-            if self.state == 'title':
+            # --- Game Mode ---
+            if self.state == 'boot':
+                self.boot_screen(dt)
+            elif self.state == 'title':
                 self.title_screen()
             elif self.state == 'play':
                 self.level.run(dt)
             elif self.state == 'pause':
                 self.pause_menu()
             elif self.state == 'game_over':
-                self.game_over_screen()         
-            # debugging
-            #debug(self, self.fonts['debugging'], f"Play time: {self.play_time:.2f} | Total time: {self.runtime:.2f}")
-            if hasattr(self, 'level'): 
-                debug(self, self.fonts['debugging'], f"Sprites : {len(self.level.sprites)}", 10, 65)
-                #debug(self, self.fonts['debugging'], f"Health : {self.level.player.health}", 10, 120)
-            self.draw_virtual_screen()
+                self.game_over_screen()
+            self.swipe_to_black()
+            self.fade_black()
+            # --- Debugging ---
+            #debug(self, self.debugging_font, f"Play time: {self.play_time:.2f} | Total time: {self.runtime:.2f}")
+            #if hasattr(self, 'level'): 
+                #debug(self, self.debugging_font, f"Sprites : {len(self.level.sprites)}", 10, 65)
+                #debug(self, self.debugging_font, f"Health : {self.level.player.health}", 10, 120)
+            # --- Update Frame ---
+            if self.running or self.swipe_to_black_timer.active:
+                self.draw_virtual_screen()
 
     def get_general_input(self) -> None:
-        self.input_cooldown_timer.update()
         # --- Universal Input ---
         if self.input_pressed('fullscreen'):
             toggle_fullscreen()
             hide_cursor() if is_window_fullscreen() else show_cursor()
 
+        if self.swipe_to_black_timer.active or self.fade_to_black_timer.active or self.fade_from_black_timer.active: # stop all further input during fading
+            return
+        
         # --- TITLE ---
         if self.state == 'title':
             if self.input_pressed('confirm') or self.input_pressed('open_map') or self.input_pressed('open_inventory') or self.input_pressed('menu_back'):
+                self.swipe_to_black_timer.activate()
                 self.requested_state = 'play'
+                self.play_sfx('transition')
 
         # --- PLAY ---
         elif self.state == 'play':
@@ -127,7 +134,7 @@ class Game:
                     
                 # go back to main menu tabs
                 elif self.input_pressed('open_inventory') or self.input_pressed('open_map') or self.input_pressed('menu_back'):
-                    if self.current_menu_tab.menu_name == "Audio":
+                    if self.current_menu_tab.menu_name == "Audio" and self.current_track:
                         set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume * MUSIC_PAUSE_DIM_FACTOR)
                     self.current_menu_tab = MenuTab(self, self.main_menu_tab_names[self.current_menu_tab_id])
 
@@ -226,9 +233,13 @@ class Game:
         elif self.state == 'game_over':
             if self.input_pressed('confirm') or self.input_pressed('open_inventory'):
                 self.requested_state = 'play'
+            elif self.input_pressed('menu_back'):
+                self.save_game_data()
+                self.swipe_to_black_timer.activate()
+                self.running = False
 
     def change_game_mode(self) -> None:
-        if not self.requested_state or self.requested_state == self.state:
+        if not self.requested_state or self.requested_state == self.state or self.swipe_to_black_timer.active or self.fade_to_black_timer.active:
             return
         # --- Change state ---
         old, new = self.state, self.requested_state
@@ -241,6 +252,7 @@ class Game:
         # --- TITLE ---
         if new == 'title':
             if old == 'boot':
+                self.current_track = self.music['title']
                 self.play_music('title')
 
         # --- PLAY ---
@@ -249,34 +261,73 @@ class Game:
                 self.level = Level(self, self.last_saved_current_map)
                 # set player position if saved
                 self.play_start = get_time()
+                self.fade_from_black_timer.activate(FADE_FROM_BLACK_AFTER_MENU_DURATION)
             elif old == 'pause':
                 self.current_menu_tab_id = 0
                 self.resume_play_time()
-                set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume)
+                if self.current_track:
+                    set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume)
             elif old == 'game_over':
                 self.resume_play_time()
                 self.save_game_data()
                 self.load_save_data()
                 self.level = Level(self, self.last_saved_current_map)
                 self.play_music(self.level.current_map, True)
+                self.fade_from_black_timer.activate(FADE_FROM_BLACK_AFTER_MENU_DURATION)
 
         # --- PAUSE ---
         elif new == 'pause':
             if old == 'play':
                 self.pause_play_time()
-                set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume * MUSIC_PAUSE_DIM_FACTOR)
+                if self.current_track:
+                    set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume * MUSIC_PAUSE_DIM_FACTOR)
 
         # --- GAME OVER ---
         elif new == 'game_over':
             self.pause_music()
             self.pause_play_time()
 
+    def boot_screen(self, dt: float) -> None:
+        # --- 1. Lade-Schritt ausführen ---
+        if not self.loading_finished:
+            try:
+                next(self.load_generator)
+            except StopIteration:
+                self.loading_finished = True
+
+        # --- 2. Animation & Ladebildschirm zeichnen ---
+        begin_texture_mode(self.virtual_screen)
+        clear_background(COLORS['boot_screen_background'])
+
+        draw_texture(self.ralphus_studios_logo, SCREEN_CENTER[0] - self.ralphus_studios_logo.width//2, SCREEN_CENTER[1] - self.ralphus_studios_logo.height//2 - 50, WHITE)
+
+        # Beispiel A: Pulsierender Text oder Status
+        self.loading_status_text.draw()
+
+        # Beispiel B: Ladebalken
+        bar_width = 300
+        bar_height = 12
+        bar_x = (SCREEN_WIDTH - bar_width) / 2
+        bar_y = SCREEN_HEIGHT - 50
+
+        # Hintergrund des Balkens
+        draw_rectangle_lines_ex(Rectangle(bar_x, bar_y, bar_width, bar_height), 2, COLORS['loading_bar_outline'])
+        # Füllung basierend auf Fortschritt
+        draw_rectangle_rec(Rectangle(bar_x + 2, bar_y + 2, (bar_width - 4) * self.loading_progress, bar_height - 4), COLORS['loading_bar_filling'])
+
+        end_texture_mode()
+
+        # --- 3. Zustand wechseln wenn fertig UND Mindestzeit abgelaufen ---
+        if self.loading_finished and not self.boot_timer.active:
+            self.requested_state = 'title'
+
     def title_screen(self) -> None:
         begin_texture_mode(self.virtual_screen)
         clear_background(BLACK)
-        draw_texture(self.background_images['title'], 0, 0, WHITE)
-        self.title_text.set_position_and_size(new_center=(SCREEN_CENTER[0], SCREEN_CENTER[1] + 18 * sin(self.runtime * 3)))
-        self.title_text.draw()
+        draw_texture(self.ui_images['title_background'], 0, 0, WHITE)
+        if not self.swipe_to_black_timer.active:
+            self.title_text.set_position_and_size(new_center=(SCREEN_CENTER[0], SCREEN_CENTER[1] + 18 * sin(self.runtime * 3)))
+            self.title_text.draw()
         end_texture_mode()
 
     def pause_menu(self) -> None:
@@ -290,9 +341,10 @@ class Game:
 
     def game_over_screen(self) -> None:
         begin_texture_mode(self.virtual_screen)
-        clear_background(BLACK)
+        clear_background(COLORS['game_over_background'])
 
         self.game_over_text.draw()
+        self.game_over_hint.draw()
 
         end_texture_mode()
 
@@ -322,15 +374,6 @@ class Game:
         save_data = load_file(self.SAVE_FILE, current_process)
 
         save_data['current_map'] = self.level.current_map
-
-        save_file(self.SAVE_FILE, save_data, current_process)
-
-    def save_runtime(self) -> None:
-        current_process = 'Saving runtime'
-        save_data = load_file(self.SAVE_FILE, current_process)
-
-        accumulated_time = self.total_runtime if hasattr(self, 'total_runtime') else 0.0
-        save_data['total_runtime'] = self.runtime + accumulated_time
 
         save_file(self.SAVE_FILE, save_data, current_process)
 
@@ -370,149 +413,184 @@ class Game:
         self.SAVE_FILE = join(saves_dir, 'save.json')
         self.SETTINGS_FILE = join(saves_dir, 'settings.json')
 
-    def import_graphics(self) -> None:
+    def import_boot_assets(self) -> None:
         self.icon: Image = load_image(join(self.GRAPHICS_DIR, 'ui', 'icon.png'))
+        set_window_icon(self.icon)
+        self.debugging_font = load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['debugging'], ffi.NULL, 0)
+        self.boot_font: Font = load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['loading_bar_text'], ffi.NULL, 0)
+        self.loading_status_text = RegularText(self, "Starting Game...", self.boot_font, FONT_SIZES['loading_bar_text'], 0, (SCREEN_CENTER[0], SCREEN_HEIGHT - 80), COLORS['loading_bar_text'])
+        self.ralphus_studios_logo: Texture = load_texture(join(self.GRAPHICS_DIR, 'ui', 'ralphus_studios_logo.png'))
 
-        self.sword_images: dict[str, Texture] = {
-            'down': load_texture(join(self.GRAPHICS_DIR, 'sword', 'down.png')),
-            'up': load_texture(join(self.GRAPHICS_DIR, 'sword', 'up.png')),
-            'right': load_texture(join(self.GRAPHICS_DIR, 'sword', 'right.png')),
-            'left': load_texture(join(self.GRAPHICS_DIR, 'sword', 'left.png')),
-        }
+    def import_game_assets_and_saves(self) -> Generator:
+        # --- Save Data ---
+        self.loading_status_text.text = "Loading Save Data..."
+        self.loading_status_text.set_position_and_size()
+        self.loading_progress = 0.2
+        yield
+        self.load_settings()
+        yield
+        self.load_save_data()
 
-        self.ui_images: dict[str, Texture] = { 
-            'sword': load_texture(join(self.GRAPHICS_DIR, 'sword', 'full.png')),
-            'menu_card': load_texture(join(self.GRAPHICS_DIR, 'ui', 'menu_card.png')),
-            }
+        # --- Graphics ---
+        self.loading_status_text.text = "Loading Graphics..."
+        self.loading_status_text.set_position_and_size()
+        self.loading_progress = 0.4
+        yield
+        yield from self.import_graphics()
+        self.init_main_menu_texts()
+        yield
 
-        self.background_images: dict[str, Texture] = {
-            'title': load_texture(join(self.GRAPHICS_DIR, 'ui', 'title_background.png')),
-        }
+        # --- Audio ---
+        self.loading_status_text.text = "Loading Audio..."
+        self.loading_status_text.set_position_and_size()
+        self.loading_progress = 0.6
+        yield
+        yield from self.import_audio()
+        self.set_volumes()
+        yield
 
-        self.level_images: dict[str, Image | Texture | list[Texture]] = {
-            'start_area': load_texture(join(self.GRAPHICS_DIR, 'levels', 'start_area.png')),
-            'cave': load_texture(join(self.GRAPHICS_DIR, 'levels', 'cave.png')),
-            'cave2': load_texture(join(self.GRAPHICS_DIR, 'levels', 'cave2.png')),
-            }
+        # --- World Data ---
+        self.loading_status_text.text = "Loading World Data..."
+        self.loading_progress = 0.8
+        yield from self.import_world_data()
+        yield
 
-        self.tile_images: dict[str, list[Texture]] = {
-            'column': import_image_folder(join(self.GRAPHICS_DIR, 'tiles', 'column')),
-            'rock': import_image_folder(join(self.GRAPHICS_DIR, 'tiles', 'rock')),
-            'grass': import_image_folder(join(self.GRAPHICS_DIR, 'tiles', 'grass')),
-            }
-
-        self.entity_images: dict[str, dict[str, list[Texture]]] = {
-            'player': {f'{direction}{suffix}': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', f'{direction}{suffix}'))
-                for direction in ['down', 'right', 'left', 'up']
-                for suffix in ['', '_attack', '_idle']},
-            'bamboo': {f'{state}': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'monsters', 'bamboo', f'{state}')) for state in ['move', 'idle', 'attack']},
-            'spirit': {f'{state}': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'monsters', 'spirit', f'{state}')) for state in ['move', 'idle', 'attack']},
-            'squid': {f'{state}': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'monsters', 'squid', f'{state}')) for state in ['move', 'idle', 'attack']},
-            'raccoon': {f'{state}': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'monsters', 'raccoon', f'{state}')) for state in ['move', 'idle', 'attack']},
-        }
-
-        self.particle_images: dict[str, list[Texture]|list[list[Texture]]] = {
-            # attack effects
-            'raccoon_attack': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'raccoon_attack')),
-            'spirit_attack': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'spirit_attack')),
-            'bamboo_attack': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'bamboo_attack')),
-            'squid_attack': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'squid_attack')),
-
-            # death animations
-            'squid_death': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'squid_death')),
-            'raccoon_death': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'raccoon_death')),
-            'spirit_death': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'spirit_death')),
-            'bamboo_death': import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'bamboo_death')),
-
-            # grass cut particles
-            'leaf': [
-                    import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'leaf1')),
-                    import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'leaf2')),
-                    import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'leaf3')),
-                    import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'leaf4')),
-                    import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'leaf5')),
-                    import_image_folder(join(self.GRAPHICS_DIR, 'particles', 'leaf6'))
-                    ]
-            }
-
-        self.fonts: dict[str, Font] = {
-            'title': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['title'], ffi.NULL, 0),
-            'game_over': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['game_over'], ffi.NULL, 0),
-            'menu_heading': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['menu_heading'], ffi.NULL, 0),
-            'settings_tab_clickable_text': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['settings_tab_clickable_text'], ffi.NULL, 0),
-            'save_and_quit_prompt': load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['save_and_quit_prompt'], ffi.NULL, 0),
-            'master_volume': load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['master_volume'], ffi.NULL, 0),
-            'keyboard_bindings_note': load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['keyboard_bindings_note'], ffi.NULL, 0),
-            'keyboard_bindings_prompt': load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['keyboard_bindings_prompt'], ffi.NULL, 0),
-            'debugging': load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['debugging'], ffi.NULL, 0),
-            }
-
-    def import_audio(self) -> None:
-        # --- music ---
-        self.music: dict[str, Music] = {
-            'title': load_music_stream(join(self.MUSIC_DIR, 'title.wav')),
-            'start_area': load_music_stream(join(self.MUSIC_DIR, 'start_area.wav')),
-            'cave': load_music_stream(join(self.MUSIC_DIR, 'cave.wav')),
-        }
-
-        # --- sfx ---
-        self.sfx: dict[str, Sound] = {
-            'transition': load_sound(join(self.SFX_DIR, 'transition.wav')),
-            'sword': load_sound(join(self.SFX_DIR, 'sword.wav')),
-            'grass_cut': load_sound(join(self.SFX_DIR, 'grass_cut.wav')),
-            'enemy_hurt': load_sound(join(self.SFX_DIR, 'enemy_hurt.wav')),
-            'player_hurt': load_sound(join(self.SFX_DIR, 'player_hurt.wav')),
-            'menu_button_pressed': load_sound(join(self.SFX_DIR, 'menu_button_pressed.wav')),
-            'pause_menu_opened': load_sound(join(self.SFX_DIR, 'pause_menu_opened.wav')),
-            'menu_button_hovered': load_sound(join(self.SFX_DIR, 'menu_button_hovered.wav')),
-        }
-
-    def import_world_data(self) -> None:
-        self.maps: dict[str, TiledMap] = {
-            'start_area': TiledMap(join(self.DATA_DIR, 'maps', 'start_area.tmx')),
-            'cave': TiledMap(join(self.DATA_DIR, 'maps', 'cave.tmx')),
-            'cave2': TiledMap(join(self.DATA_DIR, 'maps', 'cave2.tmx')),
-            }
+        # --- Finished ---
+        self.loading_status_text.text = "Finished!"
+        self.loading_status_text.set_position_and_size()
+        self.loading_progress = 1.0
+        self.play_sfx('loading_finished')
+        yield
 
     def init_state(self) -> None:
-        # state
+        # --- State ---
         self.running = True
         self.state = 'boot'
-        self.requested_state = 'title'
-        self.current_menu_tab_id: int = 0 # 0 = map, 1 = inventory, 2 = settings
-        self.current_menu_tab: Optional[MenuTab] = None
-        self.main_menu_tab_names: list[str] = ["Map", "Inventory", "Settings"]
-        # time
+        self.requested_state = ''
+        self.swipe_to_black_timer = Timer(self, DEFAULT_SWIPE_TO_BLACK_DURATION, False, False)
+        self.fade_from_black_timer = Timer(self, DEFAULT_FADE_FROM_BLACK_DURATION, False, False)
+        self.fade_to_black_timer = Timer(self, DEFAULT_FADE_TO_BLACK_DURATION, False, False, False, self.fade_from_black_timer.activate)
+        # --- Time ---
+        self.timers: list[Timer] = []
+        self.timers.append(self.swipe_to_black_timer)
+        self.timers.append(self.fade_to_black_timer)
+        self.timers.append(self.fade_from_black_timer)
         self.play_time = 0.0
         self.play_start = 0.0
         self.pause_start = 0.0
         self.total_paused = 0.0
-        # input
+        # --- Bootup & Loading State ---
+        self.boot_timer = Timer(self, MIN_BOOT_DURATION, False, True, False)
+        self.timers.append(self.boot_timer)
+        self.loading_finished = False
+        self.loading_progress = 0.0   # 0.0 bis 1.0 für Ladebalken
+        # --- Menu Tabs ---
+        self.current_menu_tab_id: int = 0 # 0 = map, 1 = inventory, 2 = settings
+        self.current_menu_tab: Optional[MenuTab] = None
+        self.main_menu_tab_names: list[str] = ["Map", "Inventory", "Settings"]
+        # --- Input ---
         self.input_cooldown_timer = Timer(self, INPUT_COOLDOWN_AFTER_SWITCHING_GAME_MODE, False, False, False)
+        self.timers.append(self.input_cooldown_timer)
         self.keyboard_bindings = dict(DEFAULT_KEYBOARD_BINDINGS)
         self.controller_bindings = dict(CONTROLLER_BINDINGS)
-        # audio
+        # --- Audio ---
         self.current_key: Optional[str] = None
-        self.current_track: Music = self.music['title']
+        self.current_track: Optional[Music] = None
+
+    def import_graphics(self) -> Generator:
+        self.sword_images: dict[str, Texture] = {}
+        for direction in ['up', 'down', 'left', 'right']:
+            self.sword_images[direction] = load_texture(join(self.GRAPHICS_DIR, 'sword', f'{direction}.png'))
+            yield
+
+        self.ui_images: dict[str, Texture] = {}
+        for image in ['title_background', 'sword', 'menu_card']:
+            self.ui_images[image] = load_texture(join(self.GRAPHICS_DIR, 'ui', f'{image}.png'))
+            yield
+        
+        self.level_images: dict[str, Texture] = {}
+        for image in ['start_area', 'cave', 'cave2']:
+            self.level_images[image] = load_texture(join(self.GRAPHICS_DIR, 'levels', f'{image}.png'))
+            yield
+
+        self.tile_images: dict[str, list[Texture]] = {}
+        for tile in ['column', 'rock', 'grass']:
+            self.tile_images[tile] = import_image_folder(join(self.GRAPHICS_DIR, 'tiles', tile))
+            yield
+
+        self.entity_images: dict[str, dict[str, list[Texture]]] = {}
+        for entity in ['player', 'bamboo', 'spirit', 'squid', 'raccoon']:
+            if entity == 'player':
+                self.entity_images['player'] = {
+                    f'{direction}{suffix}': import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', f'{direction}{suffix}'))
+                    for direction in ['down', 'right', 'left', 'up']
+                    for suffix in ['', '_attack', '_idle']
+                }
+            else:
+                self.entity_images[entity] = {
+                    state: import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'monsters', entity, state)) for state in ['move', 'idle', 'attack']
+                }
+            yield
+
+        self.attack_animations_images: dict[str, list[Texture]] = {}
+        for entity in ['raccoon', 'spirit', 'bamboo', 'squid']:
+            self.attack_animations_images[entity] = import_image_folder(join(self.GRAPHICS_DIR, 'attack_animations', f'{entity}_attack'))
+            yield
+
+        self.death_animations_images: dict[str, list[Texture]] = {}
+        for entity in ['raccoon', 'spirit', 'bamboo', 'squid']:
+            self.death_animations_images[entity] = import_image_folder(join(self.GRAPHICS_DIR, 'death_animations', f'{entity}_death'))
+            yield
+
+        self.particles_images: dict[str, list[list[Texture]]] = {}
+        for particle, variant_amount in [('leaf', 6)]:
+            self.particles_images[particle] = []
+            for variant in range(1, variant_amount + 1):
+                self.particles_images[particle].append(import_image_folder(join(self.GRAPHICS_DIR, 'particles', f'{particle}{variant}')))
+                yield
+            
+
+        self.fonts: dict[str, Font] = {}
+        for font in ['title', 'game_over', 'menu_heading', 'settings_tab_clickable_text', 'master_volume']:
+            self.fonts[font] = load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES[font], ffi.NULL, 0)
+            yield
+        for font in ['game_over_hint', 'save_and_quit_prompt', 'keyboard_bindings_note', 'keyboard_bindings_prompt']:
+            self.fonts[font] = load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES[font], ffi.NULL, 0)
+            yield
+
+    def import_audio(self) -> Generator:
+        # --- music ---
+        self.music: dict[str, Music] = {}
+        for music in MUSIC_VOLUMES.keys():
+            self.music[music] = load_music_stream(join(self.MUSIC_DIR, f'{music}.wav'))
+            yield
+
+        # --- sfx ---
+        self.sfx: dict[str, Sound] = {}
+        for sfx in SFX_VOLUMES.keys():
+            self.sfx[sfx] = load_sound(join(self.SFX_DIR, f'{sfx}.wav'))
+            yield
+
+    def import_world_data(self) -> Generator:
+        self.maps: dict[str, TiledMap] = {}
+        for map in ['start_area', 'cave', 'cave2']:
+            self.maps[map] = TiledMap(join(self.DATA_DIR, 'maps', f'{map}.tmx'))
+            yield
 
     def init_main_menu_texts(self) -> None:
         self.title_text = RegularText(self, GAME_NAME, self.fonts['title'], FONT_SIZES['title'], 0, SCREEN_CENTER, COLORS['title_text'], COLORS['title_text_shadow'])
         self.game_over_text = RegularText(self, "Game Over", self.fonts['game_over'], FONT_SIZES['game_over'], 0, SCREEN_CENTER, COLORS['game_over_text'], COLORS['game_over_text_shadow'])
+        self.game_over_hint = RegularText(self, "Enter/Start: Play again\nEscape: Save & Quit", self.fonts['game_over_hint'], FONT_SIZES['game_over_hint'], 0, (SCREEN_CENTER[0], SCREEN_HEIGHT - 100), COLORS['game_over_hint'])
         self.save_and_quit_prompt = RegularText(self, "\t\t\t\t\t\t\t\t\t\tQuit game?\n(Progress is saved automatically.)", self.fonts['save_and_quit_prompt'], FONT_SIZES['save_and_quit_prompt'], 0, SCREEN_CENTER, COLORS['save_and_quit_prompt'])
         self.audio_text = RegularText(self, "-\t\tMaster Volume\t\t+", self.fonts['master_volume'], FONT_SIZES['master_volume'], 0, (SCREEN_CENTER[0], SCREEN_CENTER[1] - 100), COLORS['pause_menu_button'], COLORS['pause_menu_button_shadow'])
         self.keyboard_bindings_note = RegularText(self, "Keyboard only!", self.fonts['keyboard_bindings_note'], FONT_SIZES['keyboard_bindings_note'], 0, (SCREEN_WIDTH - 175, SCREEN_HEIGHT - 65), COLORS['keyboard_bindings_note'])
         self.keyboard_bindings_prompt = RegularText(self, "...", self.fonts['keyboard_bindings_prompt'], FONT_SIZES['keyboard_bindings_prompt'], 0, (SCREEN_CENTER[0], SCREEN_CENTER[1] + 210), COLORS['keyboard_bindings_prompt'])
 
-    def save_settings(self) -> None:
-        current_process = "Saving settings"
-        save_data = load_file(self.SETTINGS_FILE, current_process)
-
-        current_kb = {k: v for k, v in self.keyboard_bindings.items() if k in REMAPPABLE_ACTIONS}
-
-        save_data['master_volume'] = self.master_volume
-        save_data['keyboard_bindings'] = current_kb
-
-        save_file(self.SETTINGS_FILE, save_data, current_process)
+    def load_settings(self) -> None:
+        data = load_file(self.SETTINGS_FILE, "Loading settings")
+        self.master_volume: float = float(data.get('master_volume', MASTER_VOLUME))
+        if 'keyboard_bindings' in data:
+            self.keyboard_bindings.update(data['keyboard_bindings'])
 
     def load_save_data(self) -> None:
         save_data = load_file(self.SAVE_FILE)
@@ -520,12 +598,6 @@ class Game:
         self.last_saved_current_map: str = save_data.get('current_map', 'start_area')
 
     # --- Input System ---
-    def load_settings(self):
-        data = load_file(self.SETTINGS_FILE, "Loading settings")
-        self.master_volume: float = float(data.get('master_volume', MASTER_VOLUME))
-        if 'keyboard_bindings' in data:
-            self.keyboard_bindings.update(data['keyboard_bindings'])
-
     def check_joystick_dead_zone(self, axis: float) -> int:
         if not abs(axis) > CONTROLLER_DEAD_ZONE:
             return 0
@@ -625,6 +697,50 @@ class Game:
     def runtime(self) -> float:
         return get_time()
 
+    # --- Misc ---
+    def save_settings(self) -> None:
+        current_process = "Saving settings"
+        save_data = load_file(self.SETTINGS_FILE, current_process)
+
+        current_kb = {k: v for k, v in self.keyboard_bindings.items() if k in REMAPPABLE_ACTIONS}
+
+        save_data['master_volume'] = self.master_volume
+        save_data['keyboard_bindings'] = current_kb
+
+        save_file(self.SETTINGS_FILE, save_data, current_process)
+
+    def save_runtime(self) -> None:
+        current_process = 'Saving runtime'
+        save_data = load_file(self.SAVE_FILE, current_process)
+
+        accumulated_time = self.total_runtime if hasattr(self, 'total_runtime') else 0.0
+        save_data['total_runtime'] = self.runtime + accumulated_time
+
+        save_file(self.SAVE_FILE, save_data, current_process)
+
+    def swipe_to_black(self) -> None:
+        if not self.swipe_to_black_timer.active:
+            return
+
+        progress = self.swipe_to_black_timer.elapsed_time / self.swipe_to_black_timer.duration
+        bar_width = int(SCREEN_WIDTH * progress)
+        begin_texture_mode(self.virtual_screen)
+        draw_rectangle(0, 0, bar_width, SCREEN_HEIGHT, BLACK)
+        end_texture_mode()
+
+    def fade_black(self) -> None:
+        if self.fade_to_black_timer.active:
+            alpha = int((self.fade_to_black_timer.elapsed_time / self.fade_to_black_timer.duration) * 255)
+            begin_texture_mode(self.virtual_screen)
+            draw_rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Color(0,0,0, alpha % 255))
+            end_texture_mode()
+
+        elif self.fade_from_black_timer.active:
+            alpha_drain = int((self.fade_from_black_timer.elapsed_time / self.fade_from_black_timer.duration) * 255)
+            begin_texture_mode(self.virtual_screen)
+            draw_rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Color(0, 0, 0, 255 - alpha_drain))
+            end_texture_mode()
+
 # --- EXECUTE LIFECYCLE ---
 if __name__ == '__main__':
     game = Game()
@@ -632,6 +748,6 @@ if __name__ == '__main__':
     game.save_runtime()
     game.save_settings()
     # --- Cleanup ---
-    close_window()
     close_audio_device()
     sys.exit()
+    close_window()

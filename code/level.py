@@ -5,6 +5,7 @@ class Level:
     def __init__(self, game: Game, map: str) -> None:
         self.game = game
         self.animation_player = AnimationPlayer(game)
+        self.map_to_create: Optional[tuple[str, str]] = None
         self.player = Player(self.game, Vector2(0,0), self.game.entity_images['player']['down'])
         self.create_map(map, self.game.last_saved_current_map)
         self.create_camera()
@@ -13,8 +14,8 @@ class Level:
     def create_map(self, map: str, player_pos: str) -> None:
         self.current_map = map
         self.game.play_music(self.current_map)
-        self.sprites: list[Sprite] = []
-        self.particle_sprites: list[ParticleEffect] = []
+        self.sprites: list[Sprite|AnimatedEffect] = []
+        self.particle_and_effect_sprites: list[AnimatedEffect] = []
         self.collision_boxes: list[Rectangle] = []
         self.zones: list[Zone] = []
         self.floor_image = self.game.level_images[self.current_map]
@@ -40,7 +41,9 @@ class Level:
                     case 'enemy':
                         sprite_to_add = Enemy(self.game, obj.name, pos, self.game.entity_images[obj.name]['idle'])
                     case 'tile':
-                        sprite_to_add = Tile(self.game, obj.name, pos, self.game.tile_images[obj.name][obj.properties.get('version', tile_properties.get('version', 1))])
+                        obj_name = obj.name.strip('0123456789')
+                        obj_variant = int(re.sub(r"[^0-9]", "", obj.name))
+                        sprite_to_add = Tile(self.game, obj_name, pos, self.game.tile_images[obj_name][obj_variant])
                         self.collision_boxes.append(sprite_to_add.hitbox)
                     case _:
                         print(obj) # DEBUGGING
@@ -86,7 +89,11 @@ class Level:
 
     def run(self, dt: float) -> None:
         # --- updating ---
-        self.manage_collisions(dt)
+        if self.map_to_create and not self.game.fade_to_black_timer.active:
+            self.create_map(*self.map_to_create)
+            self.map_to_create = None        
+        if not any((self.game.fade_to_black_timer.active, self.game.fade_from_black_timer.active)):
+            self.manage_collisions(dt)
         self.update_sprites(dt)
         self.set_camera_boundaries()
 
@@ -107,8 +114,8 @@ class Level:
 
             if player_hit_zone:
                 self.game.play_sfx('transition')
-                self.create_map(zone.obj_name, zone.player_pos)
-                self.set_camera_boundaries()
+                self.game.fade_to_black_timer.activate()
+                self.map_to_create = (zone.obj_name, zone.player_pos)
                 return
 
         # --- sprite collisions ---
@@ -139,7 +146,7 @@ class Level:
     def update_sprites(self, dt: float) -> None:
         for sprite in self.sprites:
             sprite.update(dt)
-        for sprite in self.particle_sprites:
+        for sprite in self.particle_and_effect_sprites:
             sprite.update(dt)
         self.camera.target = self.camera_target
 
@@ -150,13 +157,14 @@ class Level:
 
         # floor image
         draw_texture(cast(Texture,self.floor_image), 0, 0, WHITE)
+        #draw_grid_2d(10000, 10000, 64, BLACK) # DEBUGGING
 
         # y-sort and draw sprites
         self.sprites.sort(key=attrgetter('y_sort_pos'))
         for sprite in self.sprites:
             sprite.draw()
-        self.particle_sprites.sort(key=attrgetter('y_sort_pos'))
-        for sprite in self.particle_sprites:
+        self.particle_and_effect_sprites.sort(key=attrgetter('y_sort_pos'))
+        for sprite in self.particle_and_effect_sprites:
             sprite.draw()
 
         # hitboxes

@@ -43,11 +43,13 @@ class Timer:
     def __init__(self, game: Game, duration: float, use_play_time: bool = True, autostart: bool = False, repeat: bool = False, callback: Optional[Callable] = None):
         self.game = game
         self.duration = duration
+        self.original_duration = self.duration
         self.use_play_time = use_play_time
         self.repeat = repeat
         self.callback = callback
         self.start_time = 0.0
         self.active = False
+        self.elapsed_time = 0.0
 
         if autostart:
             self.activate()
@@ -56,21 +58,24 @@ class Timer:
     def current_time(self) -> float:
         return self.game.play_time if self.use_play_time else self.game.runtime
 
-    def activate(self) -> None:
+    def activate(self, alternate_duration: Optional[float] = None) -> None:
+        self.duration = alternate_duration if alternate_duration else self.original_duration
         self.active = True
         self.start_time = self.current_time
 
     def deactivate(self) -> None:
         self.active = False
+        self.elapsed_time = 0.0
 
     def update(self) -> None:
         if self.active:
-            if self.current_time - self.start_time >= self.duration:
+            self.elapsed_time = self.current_time - self.start_time
+            if self.elapsed_time >= self.duration:
                 if self.callback:
                     self.callback()
                 self.deactivate()
                 if self.repeat:
-                    self.activate()
+                    self.activate(self.duration)
 
 class RegularText:
     def __init__(self, game: Game, text: str, font: Font, font_size: int, font_spacing: int, pos: tuple[float, float] | Vector2, color: Color, shadow_color: Optional[Color] = None) -> None:

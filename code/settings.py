@@ -10,6 +10,7 @@ SCREEN_CENTER: tuple[int, int] = (SCREEN_WIDTH//2, SCREEN_HEIGHT//2)
 CAMERA_ZOOM: float = 1.0
 START_IN_FULLSCREEN: bool = False
 INPUT_COOLDOWN_AFTER_SWITCHING_GAME_MODE: float = 0.1
+MIN_BOOT_DURATION: float = 3.0
 
 # --- GAMEPLAY ---
 ENTITY_DATA: dict[str, dict[str, int|float]] = {
@@ -20,7 +21,7 @@ ENTITY_DATA: dict[str, dict[str, int|float]] = {
     'raccoon': {'health': 100, 'speed': 110, 'damage': 40, 'attack_cooldown': 0.4, 'knockback': 1, 'hitbox_offset_v': 70, 'hitbox_offset_h': 60, 'attack_speed': 200, 'notice_radius': 450, 'attack_radius': 160},
 }
 
-# animations
+# Animations
 HURT_FLICKER_FREQUENCY: float = 70.0
 HURT_TIMES: dict[str, float] = {
     'Player': 1.2,
@@ -40,28 +41,42 @@ GRASS_PARTICLE_OFFSET: float = 50.0
 
 # --- GRAPHICS ---
 COLORS: dict[str, Color] = {
-    'title_text': Color(10,70,255,255),
+    'boot_screen_background': BLACK,
+    'loading_bar_outline': GRAY,
+    'loading_bar_filling': WHITE,
+    'loading_bar_text': WHITE,
+    'title_text': Color(10, 70, 255, 255),
     'title_text_shadow': RAYWHITE,
-    'pause_menu_background': Color(174,203,255,220),
-    'pause_menu_heading': Color(10,70,255,255),
-    'pause_menu_button': Color(0,150,255,255),
+    'pause_menu_background': Color(174, 203, 255, 220),
+    'pause_menu_heading': Color(10, 70, 255, 255),
+    'pause_menu_button': Color(0, 150, 255, 255),
     'pause_menu_button_hovered': RED,
     'pause_menu_button_shadow': BLACK,
-    'game_over_text': RED,
+    'game_over_background': Color(200, 0, 0, 255),
+    'game_over_text': BLACK,
     'game_over_text_shadow': DARKPURPLE,
+    'game_over_hint': BLACK,
     'save_and_quit_prompt': BLACK,
     'master_volume_rect': RAYWHITE,
-    'master_volume_rect_hovered': Color(252,96,96,255),
-    'master_volume_rect_outline': Color(144,87,52,255),
+    'master_volume_rect_hovered': Color(252, 96, 96, 255),
+    'master_volume_rect_outline': Color(144, 87, 52, 255),
     'master_volume_line': BLACK,
-    'keyboard_bindings_note': Color(10,70,255,255),
+    'keyboard_bindings_note': Color(10, 70, 255, 255),
     'keyboard_bindings_prompt': PURPLE,
 }
 
- # fonts
+DEFAULT_SWIPE_TO_BLACK_DURATION: float = 1.0
+DEATH_SWITPE_TO_BLACK_DURATION: float = 1.7
+DEFAULT_FADE_TO_BLACK_DURATION: float = 0.5
+DEFAULT_FADE_FROM_BLACK_DURATION: float = 0.5
+FADE_FROM_BLACK_AFTER_MENU_DURATION: float = 1.3
+
+ # Fonts
 FONT_SIZES: dict[str, int] = {
+    'loading_bar_text': 20,
     'title': 105,
     'game_over': 105,
+    'game_over_hint': 32,
     'menu_heading': 80,
     'settings_tab_clickable_text': 60,
     'save_and_quit_prompt': 70,
@@ -85,6 +100,7 @@ MUSIC_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
 }
 
 SFX_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
+    'loading_finished': 1.0,
     'transition': 1.0,
     'sword': 1.0,
     'grass_cut': 1.0,

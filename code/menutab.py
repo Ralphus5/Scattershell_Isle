@@ -18,7 +18,8 @@ class MenuTab:
                 for text in enumerate(["Audio", "Controls", "Save & Quit"]):
                     self.clickable_entities.append(ClickableText(game, text[1], game.fonts['settings_tab_clickable_text'], FONT_SIZES['settings_tab_clickable_text'], 0, (SCREEN_CENTER[0], (SCREEN_CENTER[1] - 190/2) + text[0] * 140), COLORS['pause_menu_button'], COLORS['pause_menu_button_hovered'], COLORS['pause_menu_button_shadow']))
             case "Audio":
-                set_music_volume(game.current_track, MUSIC_VOLUMES[cast(str, game.current_key)] * game.master_volume)
+                if game.current_track:
+                    set_music_volume(game.current_track, MUSIC_VOLUMES[cast(str, game.current_key)] * game.master_volume)
                 self.static_texts.append(self.game.audio_text)
                 self.clickable_entities.append(ClickableText(game, "Back", game.fonts['settings_tab_clickable_text'], FONT_SIZES['settings_tab_clickable_text'], 0, (SCREEN_CENTER[0], (SCREEN_CENTER[1] + 200)), COLORS['pause_menu_button'], COLORS['pause_menu_button_hovered'], COLORS['pause_menu_button_shadow']))
                 self.master_volume_rect = Rectangle(140, 200, 1000, 250)
@@ -58,15 +59,17 @@ class MenuTab:
                 match entity.text:
                     case "Quit": 
                         self.game.save_game_data()
+                        self.game.swipe_to_black_timer.activate()
                         self.game.running = False
                     case "No":
                         self.game.current_menu_tab = MenuTab(self.game, "Settings")
                     case "Back":
-                        if self.menu_name == "Audio":
+                        if self.menu_name == "Audio" and self.game.current_track:
                             set_music_volume(self.game.current_track, MUSIC_VOLUMES[cast(str, self.game.current_key)] * self.game.master_volume * MUSIC_PAUSE_DIM_FACTOR)
                         self.game.current_menu_tab = MenuTab(self.game, "Settings")
                     case "Audio":
-                        set_music_volume(self.game.current_track, MUSIC_VOLUMES[cast(str, self.game.current_key)] * self.game.master_volume)
+                        if self.game.current_track:
+                            set_music_volume(self.game.current_track, MUSIC_VOLUMES[cast(str, self.game.current_key)] * self.game.master_volume)
                         self.game.current_menu_tab = MenuTab(self.game, entity.text)
                     case _:
                         if entity.text.replace(" ", "_").lower() in REMAPPABLE_ACTIONS:

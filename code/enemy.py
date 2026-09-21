@@ -14,6 +14,12 @@ class Enemy(Entity):
         self.attack_cooldown_timer = Timer(self.game, self.stats['attack_cooldown'], True, False, False)
         self.timers.append(self.attack_cooldown_timer)
 
+    def draw(self) -> None:
+        if self.hurt_timer.active:
+            draw_texture_ex(self.texture, self.pos, 0, 1, Color(235, 130, 130, 255))
+        else:
+            draw_texture_ex(self.texture, self.pos, 0, 1, WHITE)
+
     def update(self, dt: float) -> None:
         distance, direction = self.get_player_distance_direction()
         self.update_state(distance, direction)
@@ -43,7 +49,7 @@ class Enemy(Entity):
         # Priority 3: Transition non-attacking states
         if distance <= self.attack_radius and not self.attack_cooldown_timer.active:
             self.state = 'attack'
-            self.game.level.animation_player.create_particles(f"{self.obj_name}_attack", self.center)
+            self.game.level.animation_player.create_attack_animation(self.obj_name, self.center)
             self.animation_index = 0
         elif distance <= self.notice_radius:
             self.state = 'move'

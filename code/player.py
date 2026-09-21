@@ -18,7 +18,8 @@ class Player(Entity):
 
     def update(self, dt: float) -> None:
         if not self.knockback_timer.active and not self.attack_cooldown_timer.active:
-            self.direction = self.game.get_player_movement_input()
+            if not self.game.fade_to_black_timer.active and not self.game.fade_from_black_timer.active:
+                self.direction = self.game.get_player_movement_input()
             if vector2_length(self.direction) > 1:
                 self.direction = vector2_normalize(self.direction)
             self.update_facing_direction()
@@ -46,7 +47,7 @@ class Player(Entity):
                     self.facing_direction = 'left'
 
     def attack(self) -> None:
-        if self.knockback_timer.active:
+        if self.knockback_timer.active or self.game.fade_to_black_timer.active or self.game.fade_from_black_timer.active:
             return
         if (self.game.input_pressed('item_slot_1') or is_mouse_button_pressed(0)) and not self.attack_cooldown_timer.active:
             self.animation_index = 0.0
@@ -75,6 +76,6 @@ class Player(Entity):
         super().update_appearance(dt)
 
     def destroy_weapon(self) -> None:
-        if self.sword:
+        if self.sword and self.sword in self.game.level.sprites:
             self.game.level.sprites.remove(self.sword)
             self.sword = None
