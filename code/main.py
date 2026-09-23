@@ -49,321 +49,69 @@ class Game:
             toggle_fullscreen()
             hide_cursor() if is_window_fullscreen() else show_cursor()
 
-        if self.swipe_to_black_timer.active or self.fade_to_black_timer.active or self.fade_from_black_timer.active: # stop all further input during fading
+        if self.swipe_to_black_timer.active or self.fade_to_black_timer.active or self.fade_from_black_timer.active:
             return
-        
-        # --- TITLE ---
-        if self.state == 'title':
-            # --- Click Title ---
-            if not self.current_menu_tab:
-                if (self.input_pressed('confirm') or self.input_pressed('open_map') or self.input_pressed('open_inventory') or self.input_pressed('menu_back')):
-                    self.play_sfx('title_click')
-                    self.current_menu_tab = MenuTab(self, 'Title')
 
-            # --- Menus ---
-            else:
-                if self.current_menu_tab.menu_name == "Play":
-                    if self.input_pressed('menu_move_up'):
-                        self.play_sfx('menu_button_hovered')
-                        if self.current_menu_tab.hover_id == -1:
-                            self.current_menu_tab.hover_id = 2
-                        else:
-                            self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 1) % 3
+        # --- Menu Tab Input ---
+        if self.current_menu_tab:
+            # Rebinding key prompt listener
+            if self.keyboard_bindings_prompt.text == "Press key to assign...(ESC to cancel)":
+                self.handle_key_rebinding()
+                return
 
-                    elif self.input_pressed('menu_move_down'): 
+            # Directional Navigation
+            for direction in ('up', 'down', 'left', 'right'):
+                if self.input_pressed(f'menu_move_{direction}'):
+                    if self.current_menu_tab.navigate(direction):
                         self.play_sfx('menu_button_hovered')
-                        if self.current_menu_tab.hover_id == -1:
-                            self.current_menu_tab.hover_id = 0
-                        else:
-                            self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id + 1) % 3
-                            
-                    if self.current_menu_tab.hover_id != -1 and self.input_pressed('confirm'):
-                        self.play_sfx('menu_button_pressed')
-                        self.current_save_slot = self.current_menu_tab.hover_id + 1
-                        self.swipe_to_black_timer.activate()
+                    break
+
+            # Confirm selection
+            if self.input_pressed('confirm'):
+                self.current_menu_tab.confirm()
+
+            # Main Pause Tab Switching
+            if self.state == 'pause' and self.current_menu_tab.menu_name in self.pause_menu_tab_names:
+                if self.input_pressed('switch_menu_tab_right'):
+                    self.current_pause_menu_tab_id = (self.current_pause_menu_tab_id + 1) % len(self.pause_menu_tab_names)
+                    self.current_menu_tab = MenuTab(self, self.pause_menu_tab_names[self.current_pause_menu_tab_id])
+                    self.play_sfx('menu_button_pressed')
+                elif self.input_pressed('switch_menu_tab_left'):
+                    self.current_pause_menu_tab_id = (self.current_pause_menu_tab_id - 1) % len(self.pause_menu_tab_names)
+                    self.current_menu_tab = MenuTab(self, self.pause_menu_tab_names[self.current_pause_menu_tab_id])
+                    self.play_sfx('menu_button_pressed')
+
+            # Back Navigation
+            if self.input_pressed('open_inventory') or self.input_pressed('open_map') or self.input_pressed('menu_back'):
+                if self.state == 'title':
+                    self.current_menu_tab = MenuTab(self, "Title" if self.current_menu_tab.menu_name not in ("Controls", "Audio") else "Settings")
+                elif self.state == 'pause':
+                    if self.current_menu_tab.menu_name in self.pause_menu_tab_names:
                         self.requested_state = 'play'
-                        return
-                    
-                button_was_reassigned = False
-                if self.keyboard_bindings_prompt.text == "Press key to assign...(ESC to cancel)":
-                    if self.input_pressed('menu_back'):
-                        self.keyboard_bindings_prompt.text = self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text
-                        self.keyboard_bindings_prompt.set_position_and_size()
                     else:
-                        for key in KEY_TO_NAME.keys():
-                            if is_key_pressed(key) and not key in NON_REMAPPABLE_KEYS:
-                                if self.current_menu_tab.hover_id in (6, 8) and key in NON_MAPPABLE_KEYS_TO_PAUSE:
-                                    print(f"Cannot assign {KEY_TO_NAME[key]} to 'open map' or 'open inventory' due to menu navigation conflicts!") # create warning text???
-                                else:
-                                    self.keyboard_bindings[self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text.replace(" ", "_").lower()] = key
-                                    self.keyboard_bindings_prompt.text = self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text
-                                    self.keyboard_bindings_prompt.set_position_and_size()
-                                    self.save_settings()
-                                    button_was_reassigned = True
-                num_items = len(self.current_menu_tab.clickable_entities)
+                        if self.current_menu_tab.menu_name == "Audio" and self.current_track:
+                            set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume * MUSIC_PAUSE_DIM_FACTOR)
+                        self.current_menu_tab = MenuTab(self, self.pause_menu_tab_names[self.current_pause_menu_tab_id])
+            return
 
-                if self.input_pressed('confirm'):
-                    for entity in self.current_menu_tab.clickable_entities:
-                        entity.clicked = entity.hovered
+        # --- State Input (no Menu Tab open) ---
+        if self.state == 'title':
+            if any(self.input_pressed(action) for action in ('confirm', 'open_map', 'open_inventory', 'menu_back')):
+                self.play_sfx('title_click')
+                self.current_menu_tab = MenuTab(self, 'Title')
 
-                if self.input_pressed('open_inventory') or self.input_pressed('open_map') or self.input_pressed('menu_back'):
-                    self.current_menu_tab = MenuTab(self, "Title" if not self.current_menu_tab.menu_name in ("Controls", "Audio") else "Settings")
-
-                if self.current_menu_tab.menu_name in ('Title', 'Settings', 'Audio'):
-                    if self.current_menu_tab.menu_name != 'Audio':
-                        if self.input_pressed('menu_move_up'):
-                            if self.current_menu_tab.hover_id == -1:
-                                self.current_menu_tab.hover_id = 0 if self.current_menu_tab.menu_name == 'Title' else num_items - 1  # Select first item at title tab else last item
-                            else:
-                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 1) % num_items
-
-                        elif self.input_pressed('menu_move_down'): 
-                            if self.current_menu_tab.hover_id == -1:
-                                self.current_menu_tab.hover_id = 0  # Select first item
-                            else:
-                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id + 1) % num_items
-                    else:
-                        if self.input_pressed('menu_move_up') and not self.current_menu_tab.master_volume_rect_hovered:
-                            self.current_menu_tab.hover_id = -1
-                            self.current_menu_tab.master_volume_rect_hovered = True
-                            self.play_sfx('menu_button_hovered')
-                        elif self.input_pressed('menu_move_down'):
-                            self.current_menu_tab.hover_id = 0
-                            self.current_menu_tab.master_volume_rect_hovered = False
-                        elif self.input_pressed('confirm'):
-                            self.current_menu_tab.clickable_entities[0].clicked = self.current_menu_tab.clickable_entities[0].hovered
-
-                        if self.current_menu_tab.master_volume_rect_hovered:
-                            volume_changed = False
-                            if self.input_pressed('menu_move_right'):
-                                self.master_volume = min(1.0, round(self.master_volume + 0.1, 2))
-                                volume_changed = True
-                            elif self.input_pressed('menu_move_left'):
-                                self.master_volume = max(0.0, round(self.master_volume - 0.1, 2))
-                                volume_changed = True
-
-                            if volume_changed:
-                                self.set_volumes()
-                                self.save_settings()
-                                self.play_sfx('menu_button_pressed')
-
-                # --- controls submenu ---
-                elif self.current_menu_tab.menu_name == "Controls":
-                    if not self.keyboard_bindings_prompt.text == "Press key to assign...(ESC to cancel)" and not button_was_reassigned:
-                        num_items = len(self.current_menu_tab.clickable_entities)
-                        if self.input_pressed('menu_move_right'):
-                            if self.current_menu_tab.hover_id == -1:
-                                self.current_menu_tab.hover_id = num_items - 1  # Select last item
-                            else:
-                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id + 1) % num_items
-
-                        elif self.input_pressed('menu_move_left'):
-                            if self.current_menu_tab.hover_id == -1:
-                                self.current_menu_tab.hover_id = 0  # Select first item
-                            else:
-                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 1) % num_items
-
-                        elif self.input_pressed('menu_move_up'):
-                            if self.current_menu_tab.hover_id == -1:
-                                self.current_menu_tab.hover_id = num_items - 1  # Select last item
-                            else:
-                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 2) % num_items if self.current_menu_tab.hover_id - 2 >= 0 else (self.current_menu_tab.hover_id - 1) % num_items
-
-                        elif self.input_pressed('menu_move_down'):
-                            if self.current_menu_tab.hover_id == -1:
-                                self.current_menu_tab.hover_id = 0  # Select first item
-                            else:
-                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id + 2) % num_items if self.current_menu_tab.hover_id + 2 < num_items else (self.current_menu_tab.hover_id + 1) % num_items
-
-                        elif self.input_pressed('confirm') and not button_was_reassigned:
-                            for entity in self.current_menu_tab.clickable_entities:
-                                entity.clicked = entity.hovered
-
-                        # update key prompt
-                        prompt_text = "..."
-                        for entity in self.current_menu_tab.clickable_entities:
-                            if entity.hovered and entity.text not in ("Back", "Reset to defaults"):
-                                action_key = entity.text.replace(" ", "_").lower()
-                                if action_key in self.keyboard_bindings:
-                                    prompt_text = KEY_TO_NAME[self.keyboard_bindings[action_key]]
-                                break
-
-                        # Recalculate size and center whenever the displayed text changes
-                        if self.keyboard_bindings_prompt.text != prompt_text:
-                            self.keyboard_bindings_prompt.text = prompt_text
-                            self.keyboard_bindings_prompt.set_position_and_size()
-
-        # --- PLAY ---
         elif self.state == 'play':
-            # enter pause state
             if self.input_pressed('open_map') or self.input_pressed('open_inventory') or (self.input_pressed('menu_back') and is_key_pressed(self.keyboard_bindings['menu_back'])):
                 self.play_sfx('pause_menu_opened')
                 self.requested_state = 'pause'
                 if self.input_pressed('open_map'):
-                    self.current_menu_tab_id = 0 
+                    self.current_pause_menu_tab_id = 0
                 elif self.input_pressed('open_inventory'):
-                    self.current_menu_tab_id = 1
+                    self.current_pause_menu_tab_id = 1
                 elif self.input_pressed('menu_back'):
-                    self.current_menu_tab_id = 2
-                self.current_menu_tab = MenuTab(self, self.main_settings_tab_names[self.current_menu_tab_id])
- 
-        # --- PAUSE ---
-        elif self.state == 'pause':
-            assert self.current_menu_tab is not None
-            # --- Main Tabs ---
-            # unpause
-            if self.current_menu_tab.menu_name in self.main_settings_tab_names: # type: ignore
-                if self.input_pressed('open_inventory') or self.input_pressed('open_map') or self.input_pressed('menu_back'):
-                    self.requested_state = 'play'
+                    self.current_pause_menu_tab_id = 2
+                self.current_menu_tab = MenuTab(self, self.pause_menu_tab_names[self.current_pause_menu_tab_id])
 
-                # switch tab
-                elif self.input_pressed('switch_menu_tab_right'):
-                    self.current_menu_tab_id = (self.current_menu_tab_id + 1) % len(self.main_settings_tab_names)
-                    self.current_menu_tab = MenuTab(self, self.main_settings_tab_names[self.current_menu_tab_id])
-                    self.play_sfx('menu_button_pressed')
-                elif self.input_pressed('switch_menu_tab_left'):
-                    self.current_menu_tab_id = (3 if self.current_menu_tab_id - 1 == 0 else self.current_menu_tab_id - 1) % len(self.main_settings_tab_names)
-                    self.current_menu_tab = MenuTab(self, self.main_settings_tab_names[self.current_menu_tab_id])
-                    self.play_sfx('menu_button_pressed')
-
-                # settings tab
-                elif self.current_menu_tab and self.current_menu_tab.clickable_entities:
-                    num_items = len(self.current_menu_tab.clickable_entities)
-
-                    if self.input_pressed('menu_move_up'):
-                        if self.current_menu_tab.hover_id == -1:
-                            self.current_menu_tab.hover_id = num_items - 1  # Select last item
-                        else:
-                            self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 1) % num_items
-
-                    elif self.input_pressed('menu_move_down'): 
-                        if self.current_menu_tab.hover_id == -1:
-                            self.current_menu_tab.hover_id = 0  # Select first item
-                        else:
-                            self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id + 1) % num_items
-
-                    if self.current_menu_tab.menu_name == 'Settings':
-                        if self.input_pressed('confirm'):
-                            for entity in self.current_menu_tab.clickable_entities:
-                                entity.clicked = entity.hovered
-
-            # --- Sub Tabs ---
-            else:
-                button_was_reassigned = False
-                if self.keyboard_bindings_prompt.text == "Press key to assign...(ESC to cancel)":
-                    if self.input_pressed('menu_back'):
-                        self.keyboard_bindings_prompt.text = self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text
-                        self.keyboard_bindings_prompt.set_position_and_size()
-                    else:
-                        for key in KEY_TO_NAME.keys():
-                            if is_key_pressed(key) and not key in NON_REMAPPABLE_KEYS:
-                                if self.current_menu_tab.hover_id in (6, 8) and key in NON_MAPPABLE_KEYS_TO_PAUSE:
-                                    print(f"Cannot assign {KEY_TO_NAME[key]} to 'open map' or 'open inventory' due to menu navigation conflicts!") # create warning text???
-                                else:
-                                    self.keyboard_bindings[self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text.replace(" ", "_").lower()] = key
-                                    self.keyboard_bindings_prompt.text = self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text
-                                    self.keyboard_bindings_prompt.set_position_and_size()
-                                    self.save_settings()
-                                    button_was_reassigned = True
-                    
-                # go back to main menu tabs
-                elif self.input_pressed('open_inventory') or self.input_pressed('open_map') or self.input_pressed('menu_back'):
-                    if self.current_menu_tab.menu_name == "Audio" and self.current_track:
-                        set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume * MUSIC_PAUSE_DIM_FACTOR)
-                    self.current_menu_tab = MenuTab(self, self.main_settings_tab_names[self.current_menu_tab_id])
-
-                # --- quit submenu ---
-                if self.current_menu_tab.menu_name == "Save & Quit":
-                    num_items = len(self.current_menu_tab.clickable_entities)
-                    if self.input_pressed('menu_move_right'):
-                        if self.current_menu_tab.hover_id == -1:
-                            self.current_menu_tab.hover_id = num_items - 1  # Select last item
-                        else:
-                            self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 1) % num_items
-
-                    elif self.input_pressed('menu_move_left'):
-                        if self.current_menu_tab.hover_id == -1:
-                            self.current_menu_tab.hover_id = 0  # Select first item
-                        else:
-                            self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id + 1) % num_items
-
-                    elif self.input_pressed('confirm'):
-                        for entity in self.current_menu_tab.clickable_entities:
-                            entity.clicked = entity.hovered
-
-                # --- audio submenu ---
-                elif self.current_menu_tab.menu_name == "Audio":
-                    if self.input_pressed('menu_move_up') and not self.current_menu_tab.master_volume_rect_hovered:
-                        self.current_menu_tab.hover_id = -1
-                        self.current_menu_tab.master_volume_rect_hovered = True
-                        self.play_sfx('menu_button_hovered')
-                    elif self.input_pressed('menu_move_down'):
-                        self.current_menu_tab.hover_id = 0
-                        self.current_menu_tab.master_volume_rect_hovered = False
-                    elif self.input_pressed('confirm'):
-                        self.current_menu_tab.clickable_entities[0].clicked = self.current_menu_tab.clickable_entities[0].hovered
-
-                    if self.current_menu_tab.master_volume_rect_hovered:
-                        volume_changed = False
-                        if self.input_pressed('menu_move_right'):
-                            self.master_volume = min(1.0, round(self.master_volume + 0.1, 2))
-                            volume_changed = True
-                        elif self.input_pressed('menu_move_left'):
-                            self.master_volume = max(0.0, round(self.master_volume - 0.1, 2))
-                            volume_changed = True
-
-                        if volume_changed:
-                            self.set_volumes()
-                            self.save_settings()
-                            self.play_sfx('menu_button_pressed')
-
-                # --- controls submenu ---
-                elif self.current_menu_tab.menu_name == "Controls":
-                    if not self.keyboard_bindings_prompt.text == "Press key to assign...(ESC to cancel)" and not button_was_reassigned:
-                        num_items = len(self.current_menu_tab.clickable_entities)
-                        if self.input_pressed('menu_move_right'):
-                            if self.current_menu_tab.hover_id == -1:
-                                self.current_menu_tab.hover_id = num_items - 1  # Select last item
-                            else:
-                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id + 1) % num_items
-
-                        elif self.input_pressed('menu_move_left'):
-                            if self.current_menu_tab.hover_id == -1:
-                                self.current_menu_tab.hover_id = 0  # Select first item
-                            else:
-                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 1) % num_items
-
-                        elif self.input_pressed('menu_move_up'):
-                            if self.current_menu_tab.hover_id == -1:
-                                self.current_menu_tab.hover_id = num_items - 1  # Select last item
-                            else:
-                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id - 2) % num_items if self.current_menu_tab.hover_id - 2 >= 0 else (self.current_menu_tab.hover_id - 1) % num_items
-
-                        elif self.input_pressed('menu_move_down'):
-                            if self.current_menu_tab.hover_id == -1:
-                                self.current_menu_tab.hover_id = 0  # Select first item
-                            else:
-                                self.current_menu_tab.hover_id = (self.current_menu_tab.hover_id + 2) % num_items if self.current_menu_tab.hover_id + 2 < num_items else (self.current_menu_tab.hover_id + 1) % num_items
-
-                        elif self.input_pressed('confirm') and not button_was_reassigned:
-                            for entity in self.current_menu_tab.clickable_entities:
-                                entity.clicked = entity.hovered
-
-                        # update key prompt
-                        prompt_text = "..."
-                        for entity in self.current_menu_tab.clickable_entities:
-                            if entity.hovered and entity.text not in ("Back", "Reset to defaults"):
-                                action_key = entity.text.replace(" ", "_").lower()
-                                if action_key in self.keyboard_bindings:
-                                    prompt_text = KEY_TO_NAME[self.keyboard_bindings[action_key]]
-                                break
-
-                        # Recalculate size and center whenever the displayed text changes
-                        if self.keyboard_bindings_prompt.text != prompt_text:
-                            self.keyboard_bindings_prompt.text = prompt_text
-                            self.keyboard_bindings_prompt.set_position_and_size()
-
-        # --- GAME OVER ---
         elif self.state == 'game_over':
             if self.input_pressed('confirm') or self.input_pressed('open_inventory'):
                 assert isinstance(self.current_save_slot, int)
@@ -374,6 +122,26 @@ class Game:
                 self.save_save_data(self.current_save_slot)
                 self.swipe_to_black_timer.activate()
                 self.requested_state = 'title'
+
+    def handle_key_rebinding(self) -> None:
+        assert self.current_menu_tab != None
+        action_key = self.current_menu_tab.clickable_entities[self.current_menu_tab.hover_id].text.replace(" ", "_").lower()
+
+        if self.input_pressed('menu_back'):
+            current_key = self.keyboard_bindings.get(action_key)
+            self.keyboard_bindings_prompt.text = KEY_TO_NAME.get(current_key, "...") # type: ignore
+            self.keyboard_bindings_prompt.set_position_and_size()
+        else:
+            for key in KEY_TO_NAME.keys():
+                if is_key_pressed(key) and key not in NON_REMAPPABLE_KEYS:
+                    if self.current_menu_tab.hover_id in (6, 8) and key in NON_MAPPABLE_KEYS_TO_PAUSE:
+                        print(f"Cannot assign {KEY_TO_NAME[key]} due to menu navigation conflicts!")
+                    else:
+                        self.keyboard_bindings[action_key] = key
+                        self.keyboard_bindings_prompt.text = KEY_TO_NAME.get(key, "...")
+                        self.keyboard_bindings_prompt.set_position_and_size()
+                        self.save_settings()
+                        break
 
     def change_game_mode(self) -> None:
         if not self.requested_state or self.requested_state == self.state or self.swipe_to_black_timer.active or self.fade_to_black_timer.active:
@@ -388,24 +156,23 @@ class Game:
 
         # --- TITLE ---
         if new == 'title':
-            if self.current_menu_tab:
-                self.current_menu_tab = None
+            self.current_menu_tab = None
             self.current_track = self.music['title']
             self.play_music('title')
 
         # --- PLAY ---
         elif new == 'play':
+            self.current_menu_tab = None
             if old == 'title':
                 assert isinstance(self.current_save_slot, int)
                 self.load_save_data(self.current_save_slot)
                 self.level = Level(self, self.last_saved_current_map)
-                # set player position if saved
                 self.play_start = get_time()
                 self.play_music(self.level.current_map, True)
                 if self.current_track: set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume)
                 self.fade_from_black_timer.activate(FADE_FROM_BLACK_AFTER_MENU_DURATION)
             elif old == 'pause':
-                self.current_menu_tab_id = 0
+                self.current_pause_menu_tab_id = 0
                 self.resume_play_time()
                 if self.current_track:
                     set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume)
@@ -426,6 +193,7 @@ class Game:
 
         # --- GAME OVER ---
         elif new == 'game_over':
+            self.current_menu_tab = None
             self.pause_music()
             self.pause_play_time()
 
@@ -574,9 +342,9 @@ class Game:
         self.loading_finished = False
         self.loading_progress = 0.0   # 0.0 bis 1.0 für Ladebalken
         # --- Menu Tabs ---
-        self.current_menu_tab_id: int = 0 # 0 = map, 1 = inventory, 2 = settings
+        self.current_pause_menu_tab_id: int = 0 # 0 = map, 1 = inventory, 2 = settings
+        self.pause_menu_tab_names: list[str] = ["Map", "Inventory", "Settings"]
         self.current_menu_tab: Optional[MenuTab] = None
-        self.main_settings_tab_names: list[str] = ["Map", "Inventory", "Settings"]
         # --- Input ---
         self.input_cooldown_timer = Timer(self, INPUT_COOLDOWN_AFTER_SWITCHING_GAME_MODE, False, False, False)
         self.timers.append(self.input_cooldown_timer)
@@ -916,5 +684,5 @@ if __name__ == '__main__':
     game.save_settings()
     # --- Cleanup ---
     close_audio_device()
-    sys.exit()
     close_window()
+    sys.exit()

@@ -49,7 +49,7 @@ class Player(Entity):
     def attack(self) -> None:
         if self.knockback_timer.active or self.game.fade_to_black_timer.active or self.game.fade_from_black_timer.active:
             return
-        if (self.game.input_pressed('item_slot_1') or is_mouse_button_pressed(0)) and not self.attack_cooldown_timer.active:
+        if self.game.input_pressed('item_slot_1')and not self.attack_cooldown_timer.active:
             self.animation_index = 0.0
             self.create_weapon()
             self.attack_cooldown_timer.activate()

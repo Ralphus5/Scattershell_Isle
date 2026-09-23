@@ -21,8 +21,7 @@ ENTITY_DATA: dict[str, dict[str, int|float]] = {
     'raccoon': {'health': 100, 'speed': 110, 'damage': 40, 'attack_cooldown': 0.4, 'knockback': 1, 'hitbox_offset_v': 70, 'hitbox_offset_h': 60, 'attack_speed': 200, 'notice_radius': 450, 'attack_radius': 160},
 }
 
-# Animations
-HURT_FLICKER_FREQUENCY: float = 70.0
+
 HURT_TIMES: dict[str, float] = {
     'Player': 1.2,
     'Enemy': ENTITY_DATA['player']['attack_cooldown']
@@ -32,14 +31,6 @@ KNOCKBACK_TIMES: dict[str, float] = {
     'Player': 0.05,
     'Enemy': 0.2
 }
-
-PLAYER_ANIMATION_SPEED: float = 0.025
-ENEMY_ANIMATION_SPEED: float = 0.05
-GRASS_PARTICLES_ANIMATION_SPEED: float = 14.0
-DEATH_ANIMATION_SPEED: float = 15.0
-ATTACK_ANIMATION_SPEED: float = 14.0
-
-GRASS_PARTICLE_OFFSET: float = 50.0
 
 # --- GRAPHICS ---
 COLORS: dict[str, Color] = {
@@ -76,13 +67,24 @@ COLORS: dict[str, Color] = {
     'keyboard_bindings_prompt': PURPLE,
 }
 
+# Animations
+PLAYER_ANIMATION_SPEED: float = 0.025
+ENEMY_ANIMATION_SPEED: float = 0.05
+GRASS_PARTICLES_ANIMATION_SPEED: float = 14.0
+DEATH_ANIMATION_SPEED: float = 15.0
+ATTACK_ANIMATION_SPEED: float = 14.0
+
+HURT_FLICKER_FREQUENCY: float = 70.0
+
+GRASS_PARTICLE_OFFSET: float = 50.0
+
 DEFAULT_SWIPE_TO_BLACK_DURATION: float = 1.0
 DEATH_SWITPE_TO_BLACK_DURATION: float = 1.7
 DEFAULT_FADE_TO_BLACK_DURATION: float = 0.5
 DEFAULT_FADE_FROM_BLACK_DURATION: float = 0.5
 FADE_FROM_BLACK_AFTER_MENU_DURATION: float = 1.3
 
- # Fonts
+# Fonts
 FONT_SIZES: dict[str, int] = {
     'loading_bar_text': 20,
     'title': 105,
@@ -104,7 +106,6 @@ FONT_SIZES: dict[str, int] = {
 MENU_BUTTON_HOVER_SIZE_INCREASE: int = 7
 
 # --- AUDIO ---
-# user volume settings
 MASTER_VOLUME: Annotated[float, (0-1)] = 1
 MUSIC_PAUSE_DIM_FACTOR: Annotated[float, (0-1)] = 0.2
 
@@ -134,7 +135,6 @@ PITCH_VARIATION_PLAYER_HURT: float = 0.2
 PITCH_VARIATION_GRASS_CUT: float = 0.2
 
 # --- INPUT ---
-
 KEY_TO_NAME: dict[int, str] = {val: var_name.replace('KEY_', '').replace("_", " ").title() 
                                for var_name, val in list(globals().items())
                                if var_name.startswith('KEY_') and isinstance(val, int)}# key to string conversion
