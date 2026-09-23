@@ -14,10 +14,10 @@ MIN_BOOT_DURATION: float = 3.0
 
 # --- GAMEPLAY ---
 ENTITY_DATA: dict[str, dict[str, int|float]] = {
-    'player': {'health': 120, 'speed': 200, 'damage': 15, 'attack_cooldown': 0.25, 'knockback': 3, 'hitbox_offset_v': 15, 'hitbox_offset_h': 3},
-    'bamboo': {'health': 50, 'speed': 110, 'damage': 20, 'attack_cooldown': 0.1, 'knockback': 4, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
-    'spirit': {'health': 50, 'speed': 125, 'damage': 20, 'attack_cooldown': 0, 'knockback': 4, 'hitbox_offset_v': 7, 'hitbox_offset_h': 8, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
-    'squid': {'health': 50, 'speed': 110, 'damage': 20, 'attack_cooldown': 0.1, 'knockback': 4, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
+    'player': {'health': 50, 'speed': 200, 'damage': 15, 'attack_cooldown': 0.25, 'knockback': 3, 'hitbox_offset_v': 15, 'hitbox_offset_h': 3},
+    'bamboo': {'health': 50, 'speed': 110, 'damage': 20, 'attack_cooldown': 0.3, 'knockback': 4, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
+    'spirit': {'health': 50, 'speed': 125, 'damage': 20, 'attack_cooldown': 0.3, 'knockback': 4, 'hitbox_offset_v': 7, 'hitbox_offset_h': 8, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
+    'squid': {'health': 50, 'speed': 110, 'damage': 20, 'attack_cooldown': 0.3, 'knockback': 4, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
     'raccoon': {'health': 100, 'speed': 110, 'damage': 40, 'attack_cooldown': 0.4, 'knockback': 1, 'hitbox_offset_v': 70, 'hitbox_offset_h': 60, 'attack_speed': 200, 'notice_radius': 450, 'attack_radius': 160},
 }
 
@@ -35,7 +35,9 @@ KNOCKBACK_TIMES: dict[str, float] = {
 
 PLAYER_ANIMATION_SPEED: float = 0.025
 ENEMY_ANIMATION_SPEED: float = 0.05
-PARTICLES_ANIMATION_SPEED: float = 14.0
+GRASS_PARTICLES_ANIMATION_SPEED: float = 14.0
+DEATH_ANIMATION_SPEED: float = 15.0
+ATTACK_ANIMATION_SPEED: float = 14.0
 
 GRASS_PARTICLE_OFFSET: float = 50.0
 
@@ -47,6 +49,15 @@ COLORS: dict[str, Color] = {
     'loading_bar_text': WHITE,
     'title_text': Color(10, 70, 255, 255),
     'title_text_shadow': RAYWHITE,
+    'title_menu_button': Color(10, 70, 255, 255),
+    'title_menu_button_hovered': RED,
+    'title_menu_button_shadow': WHITE,
+    'save_slot_rects': Color(0, 150, 255, 255),
+    'save_slot_rects_hovered': RED,
+    'save_slot_rects_outline': BLACK,
+    'save_slot_info': DARKGRAY,
+    'save_slot_main_info': BLACK,
+    'save_slot_new_game': BLACK,
     'pause_menu_background': Color(174, 203, 255, 220),
     'pause_menu_heading': Color(10, 70, 255, 255),
     'pause_menu_button': Color(0, 150, 255, 255),
@@ -75,6 +86,7 @@ FADE_FROM_BLACK_AFTER_MENU_DURATION: float = 1.3
 FONT_SIZES: dict[str, int] = {
     'loading_bar_text': 20,
     'title': 105,
+    'title_menu_clickable_text': 80,
     'game_over': 105,
     'game_over_hint': 32,
     'menu_heading': 80,
@@ -83,6 +95,9 @@ FONT_SIZES: dict[str, int] = {
     'master_volume': 70,
     'keyboard_bindings_prompt': 70,
     'keyboard_bindings_note': 40,
+    'save_slot_title': 30,
+    'save_slot_info': 26,
+    'save_slot_new_game': 45,
     'debugging': 30,
 }
 
@@ -106,6 +121,7 @@ SFX_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
     'grass_cut': 1.0,
     'enemy_hurt': 1.0,
     'player_hurt': 1.0,
+    'title_click': 1.0,
     'menu_button_pressed': 1.0,
     'pause_menu_opened': 1.0,
     'menu_button_hovered': 1.0,

@@ -68,14 +68,13 @@ class Entity(Sprite):
     def check_death(self) -> None:
         if self.health <= 0:
             self.game.level.sprites.remove(self)
+            self.game.level.animation_player.create_death_animation(self.obj_name, self.center)
             if self.obj_name == 'player':
                 self.game.swipe_to_black_timer.activate(DEATH_SWITPE_TO_BLACK_DURATION)
                 if self.game.level.player.sword and self.game.level.player.sword in self.game.level.sprites:
                     self.game.level.sprites.remove(self.game.level.player.sword)
                     self.game.level.player.sword = None
                 self.game.requested_state = 'game_over'
-            else:
-                self.game.level.animation_player.create_death_animation(self.obj_name, self.center)
 
     def hurt(self, damage: int, knock_back_directon: Vector2) -> None:
         if not self.hurt_timer.active:
@@ -181,20 +180,21 @@ class AnimationPlayer:
         animation_frames = choice(self.game.particles_images['leaf'])
         assert isinstance(animation_frames, list)
         flip_x = uniform(0, 1) >= 0.5
-        particle = AnimatedEffect(self.game, self.game.level.particle_and_effect_sprites, 'leaf', pos, cast(list[Texture], animation_frames), flip_x)
+        particle = AnimatedEffect(self.game, GRASS_PARTICLES_ANIMATION_SPEED, self.game.level.particle_and_effect_sprites, 'leaf', pos, cast(list[Texture], animation_frames), flip_x)
         particle.set_position(Vector2(particle.pos.x, particle.pos.y - GRASS_PARTICLE_OFFSET))
 
     def create_attack_animation(self, animation_type: str, pos: Vector2|tuple[float, float]) -> None:
         animation_frames = self.game.attack_animations_images[animation_type]
-        AnimatedEffect(self.game, self.game.level.particle_and_effect_sprites, animation_type, pos, cast(list[Texture], animation_frames))
+        AnimatedEffect(self.game, ATTACK_ANIMATION_SPEED, self.game.level.particle_and_effect_sprites, animation_type, pos, cast(list[Texture], animation_frames))
 
     def create_death_animation(self, animation_type: str, pos: Vector2|tuple[float, float]) -> None:
         animation_frames = self.game.death_animations_images[animation_type]
-        AnimatedEffect(self.game, self.game.level.sprites, animation_type, pos, cast(list[Texture], animation_frames))
+        AnimatedEffect(self.game, DEATH_ANIMATION_SPEED, self.game.level.sprites, animation_type, pos, cast(list[Texture], animation_frames))
 
 class AnimatedEffect(Sprite):
-    def __init__(self, game: Game, group: list[AnimatedEffect|Sprite]|list[AnimatedEffect], obj_name: str, pos: Vector2|tuple[float, float], textures: list[Texture], flip_x: bool = False) -> None:
+    def __init__(self, game: Game, animation_speed: float, group: list[AnimatedEffect|Sprite]|list[AnimatedEffect], obj_name: str, pos: Vector2|tuple[float, float], textures: list[Texture], flip_x: bool = False) -> None:
         super().__init__(game, obj_name, Vector2(pos[0], pos[1]) if isinstance(pos, tuple) else pos, textures[0])
+        self.animation_speed = animation_speed
         self.group = group
         self.group.append(self)
         self.pos = vector2_subtract(self.pos, Vector2(abs(self.texture.width)/2, abs(self.texture.height)/2))
@@ -209,7 +209,7 @@ class AnimatedEffect(Sprite):
         draw_texture_pro(self.texture, source, dest, Vector2(0, 0), 0, WHITE)
 
     def update(self, dt: float) -> None:
-        self.animation_index += PARTICLES_ANIMATION_SPEED * dt
+        self.animation_index += self.animation_speed * dt
         if self.animation_index >= len(self.animation_frames):
             self.group.remove(self)
         else:

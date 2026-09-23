@@ -5,7 +5,6 @@ class Level:
     def __init__(self, game: Game, map: str) -> None:
         self.game = game
         self.animation_player = AnimationPlayer(game)
-        self.map_to_create: Optional[tuple[str, str]] = None
         self.player = Player(self.game, Vector2(0,0), self.game.entity_images['player']['down'])
         self.create_map(map, self.game.last_saved_current_map)
         self.create_camera()
@@ -89,9 +88,6 @@ class Level:
 
     def run(self, dt: float) -> None:
         # --- updating ---
-        if self.map_to_create and not self.game.fade_to_black_timer.active:
-            self.create_map(*self.map_to_create)
-            self.map_to_create = None        
         if not any((self.game.fade_to_black_timer.active, self.game.fade_from_black_timer.active)):
             self.manage_collisions(dt)
         self.update_sprites(dt)
@@ -114,8 +110,7 @@ class Level:
 
             if player_hit_zone:
                 self.game.play_sfx('transition')
-                self.game.fade_to_black_timer.activate()
-                self.map_to_create = (zone.obj_name, zone.player_pos)
+                self.game.fade_to_black_timer.activate(alternate_callback=lambda: (self.create_map(zone.obj_name, zone.player_pos), self.game.fade_from_black_timer.activate()))
                 return
 
         # --- sprite collisions ---

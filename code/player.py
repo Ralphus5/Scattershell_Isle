@@ -14,7 +14,7 @@ class Player(Entity):
         self.damage = cast(int, ENTITY_DATA[self.obj_name]['damage'])
         self.knockback = cast(int, ENTITY_DATA[self.obj_name]['knockback'])
         # timers
-        self.attack_cooldown_timer.callback = self.destroy_weapon
+        self.attack_cooldown_timer.original_callback = self.destroy_weapon
 
     def update(self, dt: float) -> None:
         if not self.knockback_timer.active and not self.attack_cooldown_timer.active:

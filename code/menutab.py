@@ -8,15 +8,20 @@ class MenuTab:
         self.static_texts: list[RegularText] = []
         self.hover_id = -1
         match self.menu_name:
-            case "Map": # map
+            case "Title":
+                for text in enumerate(["Play", "Settings", "Close Game"]):
+                    self.clickable_entities.append(ClickableText(game, text[1], game.fonts['title_menu_clickable_text'], FONT_SIZES['title_menu_clickable_text'], 0, (SCREEN_CENTER[0], (SCREEN_CENTER[1] - 390/2) + text[0] * 140), COLORS['title_menu_button'], COLORS['title_menu_button_hovered'], COLORS['title_menu_button_shadow']))
+            case "Play":
+                self.save_slot_rects = [Rectangle(SCREEN_CENTER[0] - 400, (SCREEN_CENTER[1] - 195) + 180 * i, 800, 120) for i in range(0,3)]
+            case "Map":
                 pass
-                #self.clickable_entities.append() 
-            case "Inventory": # inventory
+            case "Inventory":
                 pass
-                #self.clickable_entities.append() 
-            case "Settings": # settings
-                for text in enumerate(["Audio", "Controls", "Save & Quit"]):
-                    self.clickable_entities.append(ClickableText(game, text[1], game.fonts['settings_tab_clickable_text'], FONT_SIZES['settings_tab_clickable_text'], 0, (SCREEN_CENTER[0], (SCREEN_CENTER[1] - 190/2) + text[0] * 140), COLORS['pause_menu_button'], COLORS['pause_menu_button_hovered'], COLORS['pause_menu_button_shadow']))
+            case "Settings":
+                buttons = ["Audio", "Controls", "Save & Quit"] if self.game.state != 'title' else ["Audio", "Controls", "Back"]
+                start_pos = SCREEN_CENTER[1] - 95
+                for text in enumerate(buttons):
+                    self.clickable_entities.append(ClickableText(game, text[1], game.fonts['settings_tab_clickable_text'], FONT_SIZES['settings_tab_clickable_text'], 0, (SCREEN_CENTER[0], start_pos + text[0] * 140), COLORS['pause_menu_button'], COLORS['pause_menu_button_hovered'], COLORS['pause_menu_button_shadow']))
             case "Audio":
                 if game.current_track:
                     set_music_volume(game.current_track, MUSIC_VOLUMES[cast(str, game.current_key)] * game.master_volume)
@@ -58,19 +63,26 @@ class MenuTab:
                 entity.clicked = False
                 match entity.text:
                     case "Quit": 
-                        self.game.save_game_data()
+                        assert isinstance(self.game.current_save_slot, int)
+                        self.game.save_save_data(self.game.current_save_slot)
                         self.game.swipe_to_black_timer.activate()
-                        self.game.running = False
+                        self.game.requested_state = 'title'
                     case "No":
                         self.game.current_menu_tab = MenuTab(self.game, "Settings")
                     case "Back":
-                        if self.menu_name == "Audio" and self.game.current_track:
-                            set_music_volume(self.game.current_track, MUSIC_VOLUMES[cast(str, self.game.current_key)] * self.game.master_volume * MUSIC_PAUSE_DIM_FACTOR)
-                        self.game.current_menu_tab = MenuTab(self.game, "Settings")
+                        if self.game.state == 'pause':
+                            if self.menu_name == "Audio" and self.game.current_track:
+                                set_music_volume(self.game.current_track, MUSIC_VOLUMES[cast(str, self.game.current_key)] * self.game.master_volume * MUSIC_PAUSE_DIM_FACTOR)
+                            self.game.current_menu_tab = MenuTab(self.game, "Settings")
+                        elif self.game.state == 'title':
+                            self.game.current_menu_tab = MenuTab(self.game, "Settings" if self.menu_name in ("Audio", "Controls") else "Title")
                     case "Audio":
                         if self.game.current_track:
                             set_music_volume(self.game.current_track, MUSIC_VOLUMES[cast(str, self.game.current_key)] * self.game.master_volume)
                         self.game.current_menu_tab = MenuTab(self.game, entity.text)
+                    case "Close Game":
+                        self.game.running = False
+                        self.game.swipe_to_black_timer.activate() 
                     case _:
                         if entity.text.replace(" ", "_").lower() in REMAPPABLE_ACTIONS:
                             self.game.keyboard_bindings_prompt.text = "Press key to assign...(ESC to cancel)"
@@ -83,10 +95,11 @@ class MenuTab:
             entity.draw()
 
     def draw(self) -> None:
-        draw_texture(self.game.ui_images['menu_card'], 0, 0, WHITE)
+        if not self.menu_name == "Title":
+            draw_texture(self.game.ui_images['menu_card'], 0, 0, WHITE)
+            draw_text_ex(self.game.fonts['menu_heading'], self.menu_name, Vector2(SCREEN_CENTER[0] - self.menu_heading_size.x/2, SCREEN_CENTER[1] - 325), FONT_SIZES['menu_heading'], 0, COLORS['pause_menu_heading'])
 
-        draw_text_ex(self.game.fonts['menu_heading'], self.menu_name, Vector2(SCREEN_CENTER[0] - self.menu_heading_size.x/2, SCREEN_CENTER[1] - 325), FONT_SIZES['menu_heading'], 0, COLORS['pause_menu_heading'])
-        if self.menu_name in self.game.main_menu_tab_names:
+        if self.menu_name in self.game.main_settings_tab_names and self.game.state == 'pause':
             draw_triangle(Vector2(382,47), Vector2(332,72), Vector2(382,102), COLORS['pause_menu_button_shadow'])
             draw_triangle(Vector2(380,45), Vector2(330,70), Vector2(380,100), COLORS['pause_menu_button_hovered'] if self.game.input_pressed('switch_menu_tab_left') else COLORS['pause_menu_heading'])
             draw_triangle(Vector2(902,47), Vector2(902,102), Vector2(952,72), COLORS['pause_menu_button_shadow'])
@@ -104,5 +117,25 @@ class MenuTab:
             volume_sync_x = int(line_start_x + (self.game.master_volume * line_length))
             draw_rectangle(volume_sync_x - 5, 360 - 15, 10, 30, COLORS['master_volume_line'])
 
+        if self.menu_name == "Play":
+            for i, rect in enumerate(self.save_slot_rects):
+                is_hovered = (self.hover_id == i)
+                
+                bg_color = COLORS['save_slot_rects_hovered'] if is_hovered else COLORS['save_slot_rects']
+                draw_rectangle_rec(rect, bg_color)
+                draw_rectangle_lines_ex(rect, 4 if is_hovered else 2, COLORS['save_slot_rects_outline'])
+                
+                slot_title = f"Save {i + 1}"
+                draw_text_ex(self.game.fonts['save_slot_title'], slot_title, Vector2(rect.x + 20, rect.y + 15), FONT_SIZES['save_slot_title'], 0, BLACK)
+
+                summary = self.game.save_summaries[i + 1]
+                if summary:
+                    draw_text_ex(self.game.fonts['save_slot_info'], F"Time played: {timedelta(seconds=round(summary['play_time']))}", Vector2(rect.x + 20, rect.y + 55), FONT_SIZES['save_slot_info'], 0, COLORS['save_slot_info'])
+                    draw_text_ex(self.game.fonts['save_slot_info'], F"Last saved: {summary['last_saved']}", Vector2(rect.x + 20, rect.y + 85), FONT_SIZES['save_slot_info'], 0, COLORS['save_slot_info'])
+                    draw_text_ex(self.game.fonts['save_slot_info'], F"Current Location: {summary['current_map']}", Vector2(rect.x + 400, rect.y + 85), FONT_SIZES['save_slot_info'], 0, COLORS['save_slot_main_info'])
+                else:
+                    draw_text_ex(self.game.fonts['save_slot_new_game'], "--- NEW GAME ---", Vector2(rect.x + 176, rect.y + 40), FONT_SIZES['save_slot_new_game'], 0, COLORS['save_slot_new_game'])
+
+            
         for text in self.static_texts:
             text.draw()
