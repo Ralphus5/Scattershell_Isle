@@ -8,11 +8,6 @@ class Player(Entity):
         # animation
         self.animation_state = 'down'
         self.facing_direction = 'down'
-        # attributes
-        self.health = ENTITY_DATA[self.obj_name]['health']
-        self.speed = ENTITY_DATA[self.obj_name]['speed']
-        self.damage = cast(int, ENTITY_DATA[self.obj_name]['damage'])
-        self.knockback = cast(int, ENTITY_DATA[self.obj_name]['knockback'])
         # timers
         self.attack_cooldown_timer.original_callback = self.destroy_weapon
 

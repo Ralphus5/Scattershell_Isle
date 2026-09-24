@@ -2,23 +2,24 @@ from imports import *
 
 # --- GENERAL ---
 GAME_NAME: str = "Scattershell Isle"
-TARGET_FPS: Annotated[int, (30-240)] = 60
+TARGET_FPS: Annotated[int, (10-240)] = 60
 TILE_SIZE: int = 64
 SCREEN_WIDTH: int = 1280
 SCREEN_HEIGHT: int = 720
 SCREEN_CENTER: tuple[int, int] = (SCREEN_WIDTH//2, SCREEN_HEIGHT//2)
 CAMERA_ZOOM: float = 1.0
 START_IN_FULLSCREEN: bool = False
+HIDE_CURSOR_IN_FULLSCREEN: bool = False
 INPUT_COOLDOWN_AFTER_SWITCHING_GAME_MODE: float = 0.1
 MIN_BOOT_DURATION: float = 3.0
 
 # --- GAMEPLAY ---
 ENTITY_DATA: dict[str, dict[str, int|float]] = {
-    'player': {'health': 50, 'speed': 200, 'damage': 15, 'attack_cooldown': 0.25, 'knockback': 3, 'hitbox_offset_v': 15, 'hitbox_offset_h': 3},
-    'bamboo': {'health': 50, 'speed': 110, 'damage': 20, 'attack_cooldown': 0.3, 'knockback': 4, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
-    'spirit': {'health': 50, 'speed': 125, 'damage': 20, 'attack_cooldown': 0.3, 'knockback': 4, 'hitbox_offset_v': 7, 'hitbox_offset_h': 8, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
-    'squid': {'health': 50, 'speed': 110, 'damage': 20, 'attack_cooldown': 0.3, 'knockback': 4, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
-    'raccoon': {'health': 100, 'speed': 110, 'damage': 40, 'attack_cooldown': 0.4, 'knockback': 1, 'hitbox_offset_v': 70, 'hitbox_offset_h': 60, 'attack_speed': 200, 'notice_radius': 450, 'attack_radius': 160},
+    'player': {'health': 120, 'speed': 200, 'damage': 15, 'attack_cooldown': 0.25, 'knockback': 3, 'knockback_speed': 200, 'hitbox_offset_v': 15, 'hitbox_offset_h': 3},
+    'bamboo': {'health': 50, 'speed': 110, 'damage': 20, 'attack_cooldown': 0.3, 'knockback': 5, 'knockback_speed': 150, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
+    'spirit': {'health': 50, 'speed': 125, 'damage': 20, 'attack_cooldown': 0.0, 'knockback': 6, 'knockback_speed': 180, 'hitbox_offset_v': 7, 'hitbox_offset_h': 8, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
+    'squid': {'health': 50, 'speed': 110, 'damage': 20, 'attack_cooldown': 0.3, 'knockback': 4, 'knockback_speed': 150, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
+    'raccoon': {'health': 100, 'speed': 110, 'damage': 40, 'attack_cooldown': 0.4, 'knockback': 1, 'knockback_speed': 130, 'hitbox_offset_v': 70, 'hitbox_offset_h': 60, 'attack_speed': 200, 'notice_radius': 450, 'attack_radius': 160},
 }
 
 
@@ -29,7 +30,7 @@ HURT_TIMES: dict[str, float] = {
 
 KNOCKBACK_TIMES: dict[str, float] = {
     'Player': 0.05,
-    'Enemy': 0.2
+    'Enemy': 0.15
 }
 
 # --- GRAPHICS ---
@@ -99,8 +100,7 @@ FONT_SIZES: dict[str, int] = {
     'keyboard_bindings_note': 40,
     'save_slot_title': 30,
     'save_slot_info': 26,
-    'save_slot_new_game': 45,
-    'debugging': 30,
+    'save_slot_new_game': 45
 }
 
 MENU_BUTTON_HOVER_SIZE_INCREASE: int = 7

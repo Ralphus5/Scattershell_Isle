@@ -5,14 +5,16 @@ class Enemy(Entity):
     def __init__(self, game: Game, obj_name: str, pos: Vector2, textures: list[Texture]) -> None:
         super().__init__(game, obj_name, pos, textures)
         self.state = 'idle'
-        self.stats = ENTITY_DATA[obj_name]
-        self.health = self.stats['health']
-        self.speed = self.stats['speed']
-        self.damage = cast(int, self.stats['damage'])
         self.notice_radius = self.stats['notice_radius']
         self.attack_radius = self.stats['attack_radius']
-        self.attack_cooldown_timer = Timer(self.game, self.stats['attack_cooldown'], True, False, False)
-        self.timers.append(self.attack_cooldown_timer)
+        self.knockback_timer.callback = self.on_knockback_end
+
+    def on_knockback_end(self) -> None:
+        self.speed = self.stats['speed']
+        if self.state == 'attack':
+            self.state = 'move'
+            self.animation_index = 0
+        self.direction = Vector2(0,0)
 
     def draw(self) -> None:
         if self.hurt_timer.active:
@@ -32,21 +34,18 @@ class Enemy(Entity):
         return (distance, direction)
 
     def update_state(self, distance: float, direction: Vector2) -> None:
-        # Priority 1: Freeze state changes during knockback
         if self.knockback_timer.active:
             return
 
-        # Priority 2: Manage active attack lock
         if self.state == 'attack':
             self.speed = ENTITY_DATA[self.obj_name].get('attack_speed', self.stats['speed'])
             if self.animation_index >= len(self.animation_frames):
                 self.attack_cooldown_timer.activate()
                 self.animation_index = 0
-                self.speed = self.stats['speed']
+                self.speed = self.stats['speed'] if not self.knockback_timer.active else ENTITY_DATA[self.obj_name]['knockback_speed']
                 self.state = 'move'
             return
 
-        # Priority 3: Transition non-attacking states
         if distance <= self.attack_radius and not self.attack_cooldown_timer.active:
             self.state = 'attack'
             self.game.level.animation_player.create_attack_animation(self.obj_name, self.center)

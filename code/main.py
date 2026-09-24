@@ -1,7 +1,9 @@
 from level import *
+from debug import Debug, DummyDebug
 
 class Game:
     def __init__(self) -> None:
+        self.is_exe = getattr(sys, 'frozen', False)
         self.init_raylib()
         self.init_paths()
         self.import_boot_assets()
@@ -15,12 +17,21 @@ class Game:
         while self.running and not window_should_close() or self.swipe_to_black_timer.active:
             # --- Setup ---
             dt = get_frame_time()
+            scaled_dt = dt * self.debug.game_speed[0] if hasattr(self, 'debug') else dt
+            
+            self.setup_mouse_scale()
+
             for timer in self.timers:
-                timer.update()
+                if timer in (self.swipe_to_black_timer, self.fade_to_black_timer, self.fade_from_black_timer):
+                    timer.update(scaled_dt)
+                else:
+                    timer.update(dt)
+
             self.get_general_input()
             self.change_game_mode()
             if self.current_track: update_music_stream(self.current_track)
-            self.update_play_time()
+            self.update_play_time(dt)
+            
             # --- Game Mode ---
             if self.state == 'boot':
                 self.boot_screen(dt)
@@ -34,20 +45,26 @@ class Game:
                 self.game_over_screen()
             self.swipe_to_black()
             self.fade_black()
-            # --- Debugging ---
-            #debug(self, self.debugging_font, f"Play time: {self.play_time:.2f} | Total time: {self.runtime:.2f}")
-            #if hasattr(self, 'level'): 
-                #debug(self, self.debugging_font, f"Sprites : {len(self.level.sprites)}", 10, 65)
-                #debug(self, self.debugging_font, f"Health : {self.level.player.health}", 10, 120)
+            
+            self.debug.draw_debug_gui()
+
             # --- Update Frame ---
             if self.running or self.swipe_to_black_timer.active:
                 self.draw_virtual_screen()
+
+    def setup_mouse_scale(self) -> None:
+            current_screen_width, current_screen_height = get_screen_width(), get_screen_height()
+            scale = min(current_screen_width / SCREEN_WIDTH, current_screen_height / SCREEN_HEIGHT)
+            offset_x = (current_screen_width - (SCREEN_WIDTH * scale)) / 2
+            offset_y = (current_screen_height - (SCREEN_HEIGHT * scale)) / 2
+            set_mouse_offset(int(-offset_x), int(-offset_y))
+            set_mouse_scale(1.0 / scale, 1.0 / scale)
 
     def get_general_input(self) -> None:
         # --- Universal Input ---
         if self.input_pressed('fullscreen'):
             toggle_fullscreen()
-            hide_cursor() if is_window_fullscreen() else show_cursor()
+            hide_cursor() if is_window_fullscreen() and HIDE_CURSOR_IN_FULLSCREEN else show_cursor()
 
         if self.swipe_to_black_timer.active or self.fade_to_black_timer.active or self.fade_from_black_timer.active:
             return
@@ -285,7 +302,7 @@ class Game:
 
     def init_paths(self) -> None:
         # --- detect running mode ---
-        if getattr(sys, "frozen", False):
+        if self.is_exe:
             base_dir = sys._MEIPASS # type: ignore
             user_dir = os.path.expanduser(join('~', 'Documents', GAME_NAME))
         else:
@@ -305,8 +322,6 @@ class Game:
         self.SFX_DIR = join(base_dir, 'audio', 'sfx')
         self.MUSIC_DIR = join(base_dir, 'audio', 'music')
         self.DATA_DIR = join(base_dir, 'data')
-        self.SETTINGS_FILE = join(user_dir, 'settings.json')
-        self.SAVE_FILES = {num: join(user_dir, f'save{num}.json') for num in [1,2,3]}
         # --- save files ---
         self.SETTINGS_FILE = join(saves_dir, 'settings.json')
         self.SAVE_FILES = {num: join(saves_dir, f'save{num}.json') for num in [1,2,3]}
@@ -314,7 +329,6 @@ class Game:
     def import_boot_assets(self) -> None:
         self.icon: Image = load_image(join(self.GRAPHICS_DIR, 'ui', 'icon.png'))
         set_window_icon(self.icon)
-        self.debugging_font = load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES['debugging'], ffi.NULL, 0)
         self.boot_font: Font = load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES['loading_bar_text'], ffi.NULL, 0)
         self.loading_status_text = RegularText(self, "Starting Game...", self.boot_font, FONT_SIZES['loading_bar_text'], 0, (SCREEN_CENTER[0], SCREEN_HEIGHT - 80), COLORS['loading_bar_text'])
         self.ralphus_studios_logo: Texture = load_texture(join(self.GRAPHICS_DIR, 'ui', 'ralphus_studios_logo.png'))
@@ -356,6 +370,8 @@ class Game:
         # --- Saves ---
         self.save_summaries: dict[int, dict | None] = {1: None, 2: None, 3: None}
         self.current_save_slot: Optional[int] = None
+        # --- Debug ---
+        self.debug = DummyDebug() if self.is_exe else Debug(self) 
 
     def import_game_assets_and_saves(self) -> Generator:
         # --- Save Data ---
@@ -588,9 +604,9 @@ class Game:
             set_sound_volume(self.sfx[sound], SFX_VOLUMES[sound] * self.master_volume)
 
     # --- Time System ---
-    def update_play_time(self) -> None:
+    def update_play_time(self, dt: float) -> None:
         if self.state == 'play':
-            self.play_time = self.runtime - self.play_start - self.total_paused
+            self.play_time += dt * self.debug.game_speed[0] if hasattr(self, 'debug') else dt
 
     def pause_play_time(self) -> None:
         self.pause_start = self.runtime
@@ -666,9 +682,9 @@ class Game:
 
     def fade_black(self) -> None:
         if self.fade_to_black_timer.active:
-            alpha = int((self.fade_to_black_timer.elapsed_time / self.fade_to_black_timer.duration) * 255)
+            alpha = int(clamp((self.fade_to_black_timer.elapsed_time / self.fade_to_black_timer.duration) * 255, 0, 255))
             begin_texture_mode(self.virtual_screen)
-            draw_rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Color(0,0,0, alpha % 255))
+            draw_rectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Color(0,0,0, alpha))
             end_texture_mode()
 
         elif self.fade_from_black_timer.active:

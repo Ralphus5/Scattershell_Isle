@@ -88,6 +88,7 @@ class Level:
 
     def run(self, dt: float) -> None:
         # --- updating ---
+        dt = dt * self.game.debug.game_speed[0]
         if not any((self.game.fade_to_black_timer.active, self.game.fade_from_black_timer.active)):
             self.manage_collisions(dt)
         self.update_sprites(dt)
@@ -95,7 +96,15 @@ class Level:
 
         # --- drawing ---
         begin_texture_mode(self.game.virtual_screen)
+        # draw on virtual screen
+        clear_background(RAYWHITE)
+        begin_mode_2d(self.camera)
+        # floor image
+        draw_texture(cast(Texture,self.floor_image), 0, 0, WHITE)   
+        self.game.debug.draw_grid_2d(10000, 10000, 64, BLACK)   
         self.draw_sprites()
+        self.game.debug.draw_hitboxes()
+        end_mode_2d()
         end_texture_mode()
         self.draw_ui()
 
@@ -120,12 +129,12 @@ class Level:
                 enemy_hit_player = check_collision_recs(sprite.hitbox, self.player.hitbox)
                 if enemy_hit_player and not self.player.hurt_timer.active:
                     self.game.play_sfx('player_hurt', PITCH_VARIATION_PLAYER_HURT)
-                    self.player.hurt(sprite.damage, vector2_negate(vector2_normalize(sprite.get_player_distance_direction()[1])))
+                    self.player.hurt(sprite.damage, vector2_subtract(self.player.center, sprite.center))
                 if self.player.sword:
                     enemy_hit_sword = check_collision_recs(sprite.hitbox, self.player.sword.hitbox)
                     if enemy_hit_sword and not sprite.hurt_timer.active:
                         self.game.play_sfx('enemy_hurt', PITCH_VARIATION_ENEMY_HURT)
-                        sprite.hurt(self.player.damage, vector2_normalize(sprite.get_player_distance_direction()[1]))
+                        sprite.hurt(self.player.damage, vector2_subtract(sprite.center, self.player.center))
 
             # tile collides with...
             elif isinstance(sprite, Tile):
@@ -146,42 +155,12 @@ class Level:
         self.camera.target = self.camera_target
 
     def draw_sprites(self) -> None:
-        # draw on virtual screen
-        clear_background(RAYWHITE)
-        begin_mode_2d(self.camera)
-
-        # floor image
-        draw_texture(cast(Texture,self.floor_image), 0, 0, WHITE)
-        #draw_grid_2d(10000, 10000, 64, BLACK) # DEBUGGING
-
-        # y-sort and draw sprites
         self.sprites.sort(key=attrgetter('y_sort_pos'))
         for sprite in self.sprites:
             sprite.draw()
         self.particle_and_effect_sprites.sort(key=attrgetter('y_sort_pos'))
         for sprite in self.particle_and_effect_sprites:
             sprite.draw()
-
-        # hitboxes
-        # boxes that are only in self.collison_boxes are green
-        # boxes that are from visible sprites AND in self.collision_boxes are blue
-        # boxes that are only hitboxes from sprites but not in self.collision_boxes are red
-        # transition zones are purple
-
-        #for collision_box in self.collision_boxes:
-        #    draw_rectangle_lines_ex(collision_box, 3, GREEN)        
-        #for sprite in self.sprites:
-        #    color = BLUE if sprite.hitbox in self.collision_boxes else RED
-        #    if sprite.hitbox:
-        #        draw_rectangle_lines_ex(sprite.hitbox, 3, color)
-        #for zone in self.zones:
-        #    if zone.shape_name == 'rectangle':
-        #        draw_rectangle_lines_ex(cast(Rectangle,zone.shape), 3, PURPLE)
-        #    elif zone.shape_name == 'ellipse':
-        #        circle = cast(Circle, zone.shape)
-        #        draw_circle_lines_v(circle.center, circle.radius, PURPLE)
-
-        end_mode_2d()
 
     def draw_ui(self) -> None:
         pass

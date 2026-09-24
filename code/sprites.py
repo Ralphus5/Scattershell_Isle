@@ -31,21 +31,32 @@ class Sprite:
 class Entity(Sprite):
     def __init__(self, game: Game, obj_name: str, pos: Vector2, textures: list[Texture]) -> None:
         super().__init__(game, obj_name, pos, textures[0])
+        # animation
         self.animation_frames = textures
         self.animation_index: float = 0.0
+        # stats
+        self.stats = ENTITY_DATA[obj_name]
+        self.health = self.stats['health']
+        self.speed = self.stats['speed']
+        self.damage = cast(int, self.stats['damage'])
+        self.half_hitbox_offset_vertical = self.stats['hitbox_offset_v'] / 2
+        self.half_hitbox_offset_horizontal = self.stats['hitbox_offset_h'] / 2
+        self.hitbox = inflate_rect(Rectangle(self.pos.x + self.half_hitbox_offset_horizontal, self.pos.y + self.half_hitbox_offset_vertical, self.texture.width, self.texture.height), -self.stats['hitbox_offset_h'], -self.stats['hitbox_offset_v'])
+        self.attack_cooldown = ENTITY_DATA[self.obj_name]['attack_cooldown']
+        self.hurt_time = HURT_TIMES[self.__class__.__name__]
+        self.knockback_time = KNOCKBACK_TIMES[self.__class__.__name__]
+        self.knockback_speed = ENTITY_DATA[self.obj_name]['knockback_speed']
+        self.knockback = ENTITY_DATA[self.obj_name]['knockback']
+        self.direction = Vector2()
+
+        # timers
         self.timers: list[Timer] = []
-        self.hurt_timer = Timer(self.game, HURT_TIMES[self.__class__.__name__], True, False, False)
-        self.knockback_timer = Timer(self.game, KNOCKBACK_TIMES[self.__class__.__name__], True, False, False)
-        self.attack_cooldown_timer = Timer(self.game, ENTITY_DATA[self.obj_name]['attack_cooldown'], True, False, False)
+        self.hurt_timer = Timer(self.game, self.hurt_time, True, False, False)
+        self.knockback_timer = Timer(self.game, self.knockback_time, True, False, False, callback=lambda: setattr(self, 'speed', ENTITY_DATA[self.obj_name]['speed']))
+        self.attack_cooldown_timer = Timer(self.game, self.attack_cooldown, True, False, False)
         self.timers.append(self.hurt_timer)
         self.timers.append(self.knockback_timer)
         self.timers.append(self.attack_cooldown_timer)
-        self.direction = Vector2()
-        self.speed = 0
-        self.health = 0
-        self.half_hitbox_offset_vertical = ENTITY_DATA[self.obj_name]['hitbox_offset_v'] / 2
-        self.half_hitbox_offset_horizontal = ENTITY_DATA[self.obj_name]['hitbox_offset_h'] / 2
-        self.hitbox = inflate_rect(Rectangle(self.pos.x + self.half_hitbox_offset_horizontal, self.pos.y + self.half_hitbox_offset_vertical, self.texture.width, self.texture.height), -ENTITY_DATA[self.obj_name]['hitbox_offset_h'], -ENTITY_DATA[self.obj_name]['hitbox_offset_v'])
 
     def set_position(self, pos: Vector2|tuple[float, float]) -> None:
         self.pos = Vector2(pos[0], pos[1]) if isinstance(pos, tuple) else pos
@@ -57,7 +68,7 @@ class Entity(Sprite):
         self.move(dt)
         self.update_appearance(dt)
         for timer in self.timers:
-            timer.update()
+            timer.update(dt)
             
     def draw(self) -> None:
         if self.hurt_timer.active:
@@ -78,12 +89,12 @@ class Entity(Sprite):
 
     def hurt(self, damage: int, knock_back_directon: Vector2) -> None:
         if not self.hurt_timer.active:
-            self.speed = ENTITY_DATA[self.obj_name]['speed']
             self.health -= damage
             self.check_death()
             self.hurt_timer.activate()
             self.knockback_timer.activate()
-            self.direction = vector2_multiply_value(knock_back_directon, -ENTITY_DATA[self.obj_name]['knockback'])
+            self.speed = self.knockback_speed * self.knockback
+            self.direction = vector2_normalize(knock_back_directon) if vector2_length(knock_back_directon) > 0 else Vector2()
 
     def attack(self) -> None:
         pass
