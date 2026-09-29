@@ -10,8 +10,15 @@ class Player(Entity):
         self.facing_direction = 'down'
         # timers
         self.attack_cooldown_timer.original_callback = self.destroy_weapon
+        self.low_health_sfx_timer = Timer(self.game, LOW_HEALTH_SFX_RETRIGGER_DURATION, True, False, False)
+        self.timers.append(self.low_health_sfx_timer)
+        self.max_health = self.game.last_saved_player_max_health
+        self.health = self.game.last_saved_player_current_health
 
     def update(self, dt: float) -> None:
+        if self.health <= 4 and not self.low_health_sfx_timer.active:
+            self.low_health_sfx_timer.activate()
+            self.game.play_sfx('low_health')
         if not self.knockback_timer.active and not self.attack_cooldown_timer.active:
             if not self.game.fade_to_black_timer.active and not self.game.fade_from_black_timer.active:
                 self.direction = self.game.get_player_movement_input()

@@ -43,9 +43,10 @@ class Game:
                 self.pause_menu()
             elif self.state == 'game_over':
                 self.game_over_screen()
-            self.swipe_to_black()
             self.fade_black()
-            
+            if self.state == 'play':
+                self.level.draw_ui()
+            self.swipe_to_black()
             self.debug.draw_debug_gui()
 
             # --- Update Frame ---
@@ -211,7 +212,6 @@ class Game:
         # --- GAME OVER ---
         elif new == 'game_over':
             self.current_menu_tab = None
-            self.pause_music()
             self.pause_play_time()
 
     def boot_screen(self, dt: float) -> None:
@@ -416,13 +416,18 @@ class Game:
         yield
 
     def import_graphics(self) -> Generator:
+        self.item_images: dict[str, Texture] = {}
+        for image in ['healing_heart']:
+            self.item_images[image] = load_texture(join(self.GRAPHICS_DIR, 'items', f'{image}.png'))
+            yield
+
         self.sword_images: dict[str, Texture] = {}
         for direction in ['up', 'down', 'left', 'right']:
             self.sword_images[direction] = load_texture(join(self.GRAPHICS_DIR, 'sword', f'{direction}.png'))
             yield
 
         self.ui_images: dict[str, Texture] = {}
-        for image in ['title_background', 'sword', 'menu_card']:
+        for image in ['title_background', 'sword', 'menu_card', 'empty_heart', 'quarter_heart', 'half_heart', 'three_quarters_heart', 'full_heart']:
             self.ui_images[image] = load_texture(join(self.GRAPHICS_DIR, 'ui', f'{image}.png'))
             yield
         
@@ -452,7 +457,7 @@ class Game:
 
         self.attack_animations_images: dict[str, list[Texture]] = {}
         for entity in ['raccoon', 'spirit', 'bamboo', 'squid']:
-            self.attack_animations_images[entity] = import_image_folder(join(self.GRAPHICS_DIR, 'attack_animations', f'{entity}_attack'))
+            self.attack_animations_images[entity] = import_image_folder(join(self.GRAPHICS_DIR, 'attack_effects', f'{entity}_attack'))
             yield
 
         self.death_animations_images: dict[str, list[Texture]] = {}
@@ -624,11 +629,13 @@ class Game:
         game_data = save_data.get('game_data', {})
 
         self.last_saved_current_map: str = game_data.get('current_map', 'start_area')
+        self.last_saved_player_max_health: int = game_data.get('player_max_health', ENTITY_DATA['player']['max_health'])
+        self.last_saved_player_current_health: int = game_data.get('player_current_health', ENTITY_DATA['player']['max_health'])
 
     def save_save_data(self, slot_id: int) -> None:
         if not hasattr(self, 'level'):
             return
-        current_process = 'Saving game data to save file {slot_id}'
+        current_process = f'Saving game data to save file {slot_id}'
 
         old_save_data = load_file(self.SAVE_FILES[slot_id])
 
@@ -642,10 +649,13 @@ class Game:
                 "current_map": self.level.current_map,
                 "play_time": self.play_time + accumulated_play_time if accumulated_play_time else self.play_time,
                 "last_saved": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                # "player_health": self.level.player.health,
+                "player_max_health": self.level.player.max_health,
+                "player_current_health": self.level.player.health if self.level.player.health else self.level.player.max_health,
             },
             "game_data": {
                 "current_map": self.level.current_map,
+                "player_max_health": self.level.player.max_health,
+                "player_current_health": self.level.player.health if self.level.player.health else self.level.player.max_health,
                 # Add player inventory, position, defeated enemies, etc.
             }
         }

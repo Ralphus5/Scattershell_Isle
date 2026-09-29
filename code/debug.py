@@ -4,12 +4,12 @@ from enemy import Enemy
 class Debug:
     def __init__(self, game: Game) -> None:
         self.game = game
-        self.show_debug_infos = ffi.new('bool *', True)  # Enabled by default
+        self.show_debug_infos = ffi.new('bool *', False)
         self.show_hitboxes = ffi.new('bool *', False) 
         self.show_grid_2d = ffi.new('bool *', False) 
         self.game_speed = ffi.new('float *', 1.0)
         self.camera_zoom = ffi.new('float *', 1.0)
-        self.show_debug_window = ffi.new('bool *', True)
+        self.show_debug_window = ffi.new('bool *', False)
         self.target_fps = ffi.new('float *', TARGET_FPS)
         self.selected_enemy_id = ffi.new('int *', 0)
         self.enemy_types = ["raccoon", "spirit", "squid", "bamboo"]
@@ -165,8 +165,8 @@ class Debug:
                     "Health: ", 
                     f"{int(health_ptr[0])}", 
                     health_ptr, 
-                    0, 
-                    2000
+                    1, 
+                    80
                 )
                 self.game.level.player.health = int(health_ptr[0])
 
@@ -179,9 +179,9 @@ class Debug:
     def draw_hitboxes(self) -> None:
         if self.show_hitboxes[0]:
             for collision_box in self.game.level.collision_boxes:
-                draw_rectangle_lines_ex(collision_box, 3, GREEN)        
+                draw_rectangle_lines_ex(collision_box, 3, DARKGRAY)        
             for sprite in self.game.level.sprites:
-                color = BLUE if sprite.hitbox in self.game.level.collision_boxes else RED
+                color = BLUE if sprite.hitbox in self.game.level.collision_boxes else RED if not sprite.obj_name == 'healing_heart' else GREEN
                 if sprite.hitbox:
                     draw_rectangle_lines_ex(sprite.hitbox, 3, color)
             for zone in self.game.level.zones:

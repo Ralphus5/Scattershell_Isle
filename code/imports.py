@@ -17,7 +17,8 @@ from pyray import (Image, Texture, Vector2, Color, WHITE, BLACK, RED, GRAY, RAYW
                    play_sound, set_sound_volume, close_audio_device, close_window, draw_triangle, draw_line_ex, vector2_add_value,
                    draw_circle_lines_v, gui_check_box, gui_button, set_mouse_offset, set_mouse_scale, is_mouse_button_pressed, check_collision_point_rec,
                    is_mouse_button_released, get_mouse_position, gui_slider, gui_window_box, gui_group_box, gui_label, get_font_default, get_fps,
-                   gui_combo_box)
+                   gui_combo_box, load_shader, get_shader_location, set_shader_value, begin_shader_mode, end_shader_mode, set_shader_value_v,
+                   set_shader_value_texture, begin_blend_mode, get_world_to_screen_2d, draw_circle_gradient, end_blend_mode, draw_texture_rec) 
 import pytmx
 from pytmx import TiledMap
 import pymunk
@@ -57,6 +58,9 @@ GAMEPAD_BUTTON_LEFT_TRIGGER_2, GAMEPAD_BUTTON_RIGHT_TRIGGER_1, GAMEPAD_BUTTON_RI
 GAMEPAD_BUTTON_RIGHT_FACE_UP, GAMEPAD_BUTTON_RIGHT_FACE_LEFT, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)
 
 from raylib import MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE
+
+# --- Shaders ---
+from raylib import SHADER_UNIFORM_FLOAT, SHADER_UNIFORM_INT, SHADER_UNIFORM_VEC2, SHADER_UNIFORM_VEC3, BLEND_SUBTRACT_COLORS, BLANK
 
 # --- Type Checking ---
 if TYPE_CHECKING: from main import Game

@@ -33,5 +33,4 @@ Thumbs.db
 .idea/
 
 # --- Project specific ---
-data/saves/save.json
-data/saves/settings.json
+data/saves/*.json

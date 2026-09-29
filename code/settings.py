@@ -15,11 +15,11 @@ MIN_BOOT_DURATION: float = 3.0
 
 # --- GAMEPLAY ---
 ENTITY_DATA: dict[str, dict[str, int|float]] = {
-    'player': {'health': 120, 'speed': 200, 'damage': 15, 'attack_cooldown': 0.25, 'knockback': 3, 'knockback_speed': 200, 'hitbox_offset_v': 15, 'hitbox_offset_h': 3},
-    'bamboo': {'health': 50, 'speed': 110, 'damage': 20, 'attack_cooldown': 0.3, 'knockback': 5, 'knockback_speed': 150, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
-    'spirit': {'health': 50, 'speed': 125, 'damage': 20, 'attack_cooldown': 0.0, 'knockback': 6, 'knockback_speed': 180, 'hitbox_offset_v': 7, 'hitbox_offset_h': 8, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
-    'squid': {'health': 50, 'speed': 110, 'damage': 20, 'attack_cooldown': 0.3, 'knockback': 4, 'knockback_speed': 150, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
-    'raccoon': {'health': 100, 'speed': 110, 'damage': 40, 'attack_cooldown': 0.4, 'knockback': 1, 'knockback_speed': 130, 'hitbox_offset_v': 70, 'hitbox_offset_h': 60, 'attack_speed': 200, 'notice_radius': 450, 'attack_radius': 160},
+    'player': {'max_health': 12, 'speed': 200, 'damage': 15, 'attack_cooldown': 0.25, 'knockback': 3, 'knockback_speed': 200, 'hitbox_offset_v': 15, 'hitbox_offset_h': 3},
+    'bamboo': {'max_health': 50, 'speed': 110, 'damage': 4, 'attack_cooldown': 0.3, 'knockback': 5, 'knockback_speed': 150, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
+    'spirit': {'max_health': 50, 'speed': 125, 'damage': 1, 'attack_cooldown': 0.0, 'knockback': 6, 'knockback_speed': 180, 'hitbox_offset_v': 7, 'hitbox_offset_h': 8, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
+    'squid': {'max_health': 50, 'speed': 110, 'damage': 2, 'attack_cooldown': 0.3, 'knockback': 4, 'knockback_speed': 150, 'hitbox_offset_v': 0, 'hitbox_offset_h': 0, 'attack_speed': 200, 'notice_radius': 280, 'attack_radius': 100},
+    'raccoon': {'max_health': 100, 'speed': 110, 'damage': 2, 'attack_cooldown': 0.4, 'knockback': 1, 'knockback_speed': 130, 'hitbox_offset_v': 70, 'hitbox_offset_h': 60, 'attack_speed': 200, 'notice_radius': 450, 'attack_radius': 160},
 }
 
 
@@ -108,6 +108,7 @@ MENU_BUTTON_HOVER_SIZE_INCREASE: int = 7
 # --- AUDIO ---
 MASTER_VOLUME: Annotated[float, (0-1)] = 1
 MUSIC_PAUSE_DIM_FACTOR: Annotated[float, (0-1)] = 0.2
+LOW_HEALTH_SFX_RETRIGGER_DURATION: Annotated[float, (0.5-4.0)] = 1.5
 
 MUSIC_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
     'title': 1.0,
@@ -126,6 +127,9 @@ SFX_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
     'menu_button_pressed': 1.0,
     'pause_menu_opened': 1.0,
     'menu_button_hovered': 1.0,
+    'heart_collect': 1.0,
+    'low_health': 0.6,
+    'game_over': 1.0,
 }
 
 # pitch variations

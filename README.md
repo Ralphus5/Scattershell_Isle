@@ -16,5 +16,5 @@ Keybindings are remappable for the keyboard. By default you walk with WSDA on ke
 
 ## 🧩 Credits
 
-Created with **Python 3.14** and **Pygame**.  
+Created with **Python 3.14** and **Raylib**.  
 Developed by *Raphael Glück*.

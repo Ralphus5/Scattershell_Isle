@@ -36,7 +36,6 @@ class Entity(Sprite):
         self.animation_index: float = 0.0
         # stats
         self.stats = ENTITY_DATA[obj_name]
-        self.health = self.stats['health']
         self.speed = self.stats['speed']
         self.damage = cast(int, self.stats['damage'])
         self.half_hitbox_offset_vertical = self.stats['hitbox_offset_v'] / 2
@@ -78,9 +77,12 @@ class Entity(Sprite):
 
     def check_death(self) -> None:
         if self.health <= 0:
+            self.health = 0
             self.game.level.sprites.remove(self)
             self.game.level.animation_player.create_death_animation(self.obj_name, self.center)
             if self.obj_name == 'player':
+                self.game.pause_music()
+                self.game.play_sfx('game_over')
                 self.game.swipe_to_black_timer.activate(DEATH_SWITPE_TO_BLACK_DURATION)
                 if self.game.level.player.sword and self.game.level.player.sword in self.game.level.sprites:
                     self.game.level.sprites.remove(self.game.level.player.sword)
@@ -140,7 +142,6 @@ class Tile(Sprite):
         super().__init__(game, obj_name, pos, texture)
 
         hitbox_height_ratio = 0.51 if obj_name == 'column' else 0.91
-        hitbox_inflation = -10
 
         # Hitbox belegt nur die unteren X% des Sprites
         hitbox_h = self.texture.height * hitbox_height_ratio
@@ -161,16 +162,27 @@ class Sword(Sprite):
         p_pos, p_tex = self.player.pos, self.player.texture
 
         match direction:
-            case 'down':  pos = Vector2(p_pos.x + p_tex.width / 8, p_pos.y + p_tex.height)
+            case 'down':  pos = Vector2(p_pos.x + p_tex.width * 0.5, p_pos.y + p_tex.height)
             case 'up':    pos = Vector2(p_pos.x + p_tex.width / 8, p_pos.y - self.texture.height)
-            case 'right': pos = Vector2(p_pos.x + p_tex.width, self.player.center.y)
-            case 'left':  pos = Vector2(p_pos.x - self.texture.width, self.player.center.y)
+            case 'right': pos = Vector2(p_pos.x + p_tex.width, self.player.center.y + 4)
+            case 'left':  pos = Vector2(p_pos.x - self.texture.width, self.player.center.y + 4)
 
         self.pos = pos
         self.hitbox = Rectangle(self.pos.x, self.pos.y, self.texture.width, self.texture.height)
         
     def update(self, dt: float) -> None:
         self.align_to_player()
+
+class HealingHeart(Sprite):
+    def __init__(self, game: Game, obj_name: str, pos: Vector2, texture: Texture) -> None:
+        super().__init__(game, obj_name, pos, texture)
+        self.set_position(vector2_add(self.pos, vector2_subtract(self.pos, self.center)))
+
+    def apply_item_effect(self) -> None:
+        self.game.play_sfx('heart_collect')
+        self.game.level.player.health += 4
+        if self.game.level.player.health >= self.game.level.player.max_health:
+            self.game.level.player.health = self.game.level.player.max_health
 
 class Zone():
     def __init__(self, obj_name: str, shape_name: str, player_pos: str, pos: Vector2, width: int, height: int) -> None:
@@ -200,7 +212,7 @@ class AnimationPlayer:
 
     def create_death_animation(self, animation_type: str, pos: Vector2|tuple[float, float]) -> None:
         animation_frames = self.game.death_animations_images[animation_type]
-        AnimatedEffect(self.game, DEATH_ANIMATION_SPEED, self.game.level.sprites, animation_type, pos, cast(list[Texture], animation_frames))
+        AnimatedEffect(self.game, DEATH_ANIMATION_SPEED, self.game.level.sprites, animation_type, pos, animation_frames)
 
 class AnimatedEffect(Sprite):
     def __init__(self, game: Game, animation_speed: float, group: list[AnimatedEffect|Sprite]|list[AnimatedEffect], obj_name: str, pos: Vector2|tuple[float, float], textures: list[Texture], flip_x: bool = False) -> None:

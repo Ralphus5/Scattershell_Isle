@@ -106,7 +106,6 @@ class Level:
         self.game.debug.draw_hitboxes()
         end_mode_2d()
         end_texture_mode()
-        self.draw_ui()
 
     def manage_collisions(self, dt: float) -> None:
         # --- zone collisions ---
@@ -146,6 +145,15 @@ class Level:
                             self.sprites.remove(sprite)
                             self.collision_boxes.remove(sprite.hitbox)
                             self.animation_player.create_grass_particles(sprite.center)
+                            if self.player.health < self.player.max_health and uniform(0, 1) > 0.5:
+                                self.sprites.append(HealingHeart(self.game, 'healing_heart', sprite.center, self.game.item_images['healing_heart']))
+
+            # item collides with...
+            elif isinstance(sprite, HealingHeart):
+                player_touched_item = check_collision_recs(sprite.hitbox, self.player.hitbox)
+                if player_touched_item:
+                    sprite.apply_item_effect()
+                    self.sprites.remove(sprite)
 
     def update_sprites(self, dt: float) -> None:
         for sprite in self.sprites:
@@ -163,4 +171,22 @@ class Level:
             sprite.draw()
 
     def draw_ui(self) -> None:
-        pass
+        begin_texture_mode(self.game.virtual_screen)
+        remaining_heart_health = self.player.health
+        for i in range(0, (int(self.player.max_health) // 4)):
+            if remaining_heart_health >= 4:
+                heart_texture = 'full_heart'
+            elif remaining_heart_health == 3:
+                heart_texture = 'three_quarters_heart'
+            elif remaining_heart_health == 2:
+                heart_texture = 'half_heart'
+            elif remaining_heart_health == 1:
+                heart_texture = 'quarter_heart'
+            else:
+                heart_texture = 'empty_heart'
+            texture = self.game.ui_images[heart_texture] 
+            shaking = 0 if self.player.health > 4 or i > 0 else sin(self.game.play_time * 25) * 2
+            draw_texture(texture, int(10 + 36 * (i % 10) + shaking), 10 if i < 10 else 46, WHITE)
+            remaining_heart_health -= 4
+
+        end_texture_mode()

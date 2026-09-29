@@ -238,6 +238,24 @@ class MenuTab:
                     draw_text_ex(self.game.fonts['save_slot_info'], F"Time played: {timedelta(seconds=round(summary['play_time']))}", Vector2(rect.x + 20, rect.y + 55), FONT_SIZES['save_slot_info'], 0, COLORS['save_slot_info'])
                     draw_text_ex(self.game.fonts['save_slot_info'], F"Last saved: {summary['last_saved']}", Vector2(rect.x + 20, rect.y + 85), FONT_SIZES['save_slot_info'], 0, COLORS['save_slot_info'])
                     draw_text_ex(self.game.fonts['save_slot_info'], F"Current Location: {summary['current_map']}", Vector2(rect.x + 400, rect.y + 85), FONT_SIZES['save_slot_info'], 0, COLORS['save_slot_main_info'])
+                    remaining_heart_health = summary['player_current_health']
+                    start_pos = SCREEN_CENTER[1] - 180
+                    gap = 25
+                    for j in range(0, (int(summary['player_max_health']) // 4)):
+                        if remaining_heart_health >= 4:
+                            heart_texture = 'full_heart'
+                        elif remaining_heart_health == 3:
+                            heart_texture = 'three_quarters_heart'
+                        elif remaining_heart_health == 2:
+                            heart_texture = 'half_heart'
+                        elif remaining_heart_health == 1:
+                            heart_texture = 'quarter_heart'
+                        else:
+                            heart_texture = 'empty_heart'
+                        texture = self.game.ui_images[heart_texture] 
+                        
+                        draw_texture_ex(texture, Vector2(int(640 + gap * (j % 10)), (start_pos if j < 10 else start_pos + gap) + i * 180), 0, 0.6, WHITE)
+                        remaining_heart_health -= 4
                 else:
                     draw_text_ex(self.game.fonts['save_slot_new_game'], "--- NEW GAME ---", Vector2(rect.x + 176, rect.y + 40), FONT_SIZES['save_slot_new_game'], 0, COLORS['save_slot_new_game'])
 

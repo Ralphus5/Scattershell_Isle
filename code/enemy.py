@@ -4,6 +4,8 @@ from sprites import *
 class Enemy(Entity):
     def __init__(self, game: Game, obj_name: str, pos: Vector2, textures: list[Texture]) -> None:
         super().__init__(game, obj_name, pos, textures)
+        self.max_health = self.stats['max_health']
+        self.health = self.max_health
         self.state = 'idle'
         self.notice_radius = self.stats['notice_radius']
         self.attack_radius = self.stats['attack_radius']
