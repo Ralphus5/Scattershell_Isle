@@ -56,6 +56,9 @@ class Level:
                     case 'zone':
                         origin_map = self.current_map
                         self.zones.append(Zone(obj.name, obj.properties['shape'], origin_map, pos, obj.width, obj.height))
+                    case 'marker':
+                        if not 'sword' in self.player.inventory.slot_items:
+                            self.sprites.append(CollectibleSword(self.game, obj.name, pos, self.game.slot_item_images[obj.name]))
                    
     def create_camera(self) -> None:
         self.camera = Camera2D()
@@ -129,8 +132,8 @@ class Level:
                 if enemy_hit_player and not self.player.hurt_timer.active:
                     self.game.play_sfx('player_hurt', PITCH_VARIATION_PLAYER_HURT)
                     self.player.hurt(sprite.damage, vector2_subtract(self.player.center, sprite.center))
-                if self.player.sword:
-                    enemy_hit_sword = check_collision_recs(sprite.hitbox, self.player.sword.hitbox)
+                if self.player.weapon:
+                    enemy_hit_sword = check_collision_recs(sprite.hitbox, self.player.weapon.hitbox)
                     if enemy_hit_sword and not sprite.hurt_timer.active:
                         self.game.play_sfx('enemy_hurt', PITCH_VARIATION_ENEMY_HURT)
                         sprite.hurt(self.player.damage, vector2_subtract(sprite.center, self.player.center))
@@ -138,18 +141,18 @@ class Level:
             # tile collides with...
             elif isinstance(sprite, Tile):
                 if sprite.obj_name == 'grass':
-                    if self.player.sword:
-                        tile_hit_sword = check_collision_recs(sprite.hitbox, self.player.sword.hitbox)
+                    if self.player.weapon:
+                        tile_hit_sword = check_collision_recs(sprite.hitbox, self.player.weapon.hitbox)
                         if tile_hit_sword:
                             self.game.play_sfx('grass_cut', PITCH_VARIATION_GRASS_CUT)
                             self.sprites.remove(sprite)
                             self.collision_boxes.remove(sprite.hitbox)
                             self.animation_player.create_grass_particles(sprite.center)
-                            if self.player.health < self.player.max_health and uniform(0, 1) > 0.5:
-                                self.sprites.append(HealingHeart(self.game, 'healing_heart', sprite.center, self.game.item_images['healing_heart']))
+                            if self.player.health < self.player.max_health and uniform(0, 1) <= HEART_FROM_GRASS_PROBABILITY:
+                                self.sprites.append(HealingHeart(self.game, 'healing_heart', sprite.center, self.game.collectibles_images['healing_heart']))
 
             # item collides with...
-            elif isinstance(sprite, HealingHeart):
+            elif isinstance(sprite, CollectibleItem):
                 player_touched_item = check_collision_recs(sprite.hitbox, self.player.hitbox)
                 if player_touched_item:
                     sprite.apply_item_effect()
@@ -172,6 +175,8 @@ class Level:
 
     def draw_ui(self) -> None:
         begin_texture_mode(self.game.virtual_screen)
+
+        # --- Player Hearts ---
         remaining_heart_health = self.player.health
         for i in range(0, (int(self.player.max_health) // 4)):
             if remaining_heart_health >= 4:
@@ -188,5 +193,29 @@ class Level:
             shaking = 0 if self.player.health > 4 or i > 0 else sin(self.game.play_time * 25) * 2
             draw_texture(texture, int(10 + 36 * (i % 10) + shaking), 10 if i < 10 else 46, WHITE)
             remaining_heart_health -= 4
+
+        # --- Item Slots ---
+        # slot 1
+        rect_rounding = 0.2
+        rect_1 = Rectangle(15, SCREEN_HEIGHT - 135, 70, 120)
+        draw_text_ex(self.game.fonts['item_slot_number'], '1', Vector2(rect_1.x + rect_1.width / 2 - 10, rect_1.y - 30), FONT_SIZES['item_slot_number'], 0, COLORS['item_slot_number'])
+        draw_rectangle_rounded(rect_1, rect_rounding, 1, COLORS['item_slot_bg'])
+        draw_rectangle_rounded_lines_ex(rect_1, rect_rounding, 1, 4, COLORS['item_slot_outline'])
+        scale = 1.5 if not self.game.input_pressed('item_slot_1') or self.game.fade_to_black_timer.active or self.game.fade_from_black_timer.active else 1.7
+        if self.player.slot_1_item:
+            draw_texture_ex(self.game.slot_item_images[self.player.slot_1_item], Vector2(15 + rect_1.width / 2 - self.game.slot_item_images[self.player.slot_1_item].width / 2 * scale, SCREEN_HEIGHT - 135 + rect_1.height/2 - self.game.slot_item_images[self.player.slot_1_item].height /2 * scale), 0, scale, WHITE)
+        # slot 2
+        rect_2 = Rectangle(110, SCREEN_HEIGHT - 135, 70, 120)
+        draw_text_ex(self.game.fonts['item_slot_number'], '2', Vector2(rect_2.x + rect_2.width / 2 - 12, rect_2.y - 30), FONT_SIZES['item_slot_number'], 0, COLORS['item_slot_number'])
+        draw_rectangle_rounded(rect_2, rect_rounding, 1, COLORS['item_slot_bg'])
+        draw_rectangle_rounded_lines_ex(rect_2, rect_rounding, 1, 4, COLORS['item_slot_outline'])
+        scale = 1.5 if not self.game.input_pressed('item_slot_2') or self.game.fade_to_black_timer.active or self.game.fade_from_black_timer.active else 1.7
+        if self.player.slot_2_item:
+            draw_texture_ex(self.game.slot_item_images[self.player.slot_2_item], Vector2(110 + rect_2.width / 2 - self.game.slot_item_images[self.player.slot_2_item].width / 2 * scale, SCREEN_HEIGHT - 135 + rect_2.height/2 - self.game.slot_item_images[self.player.slot_2_item].height /2 * scale), 0, scale, WHITE)
+
+        # --- Collectibles ---
+        draw_texture(self.game.collectibles_images['shell'], SCREEN_WIDTH - 160, 20, BLUE)
+        draw_text_ex(self.game.fonts['shell_count'], F" X{self.player.inventory.item_counts['shells']:02d}", Vector2(SCREEN_WIDTH - 118, 32), FONT_SIZES['shell_count'], 0, COLORS['shell_count_shadow'])
+        draw_text_ex(self.game.fonts['shell_count'], F" X{self.player.inventory.item_counts['shells']:02d}", Vector2(SCREEN_WIDTH - 120, 30), FONT_SIZES['shell_count'], 0, COLORS['shell_count'])
 
         end_texture_mode()

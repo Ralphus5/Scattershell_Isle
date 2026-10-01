@@ -16,7 +16,7 @@ class MenuTab:
                 self.layout = "vertical"
             case "Save & Quit":
                 self.layout = "horizontal"
-            case "Controls":
+            case "Controls" | "Inventory":
                 self.layout = "grid"
             case "Audio":
                 self.layout = "audio"
@@ -27,7 +27,7 @@ class MenuTab:
                 for text in enumerate(["Play", "Settings", "Close Game"]):
                     self.clickable_entities.append(ClickableText(game, text[1], game.fonts['title_menu_clickable_text'], FONT_SIZES['title_menu_clickable_text'], 0, (SCREEN_CENTER[0], (SCREEN_CENTER[1] - 390/2) + text[0] * 140), COLORS['title_menu_button'], COLORS['title_menu_button_hovered'], COLORS['title_menu_button_shadow']))
             case "Play":
-                self.save_slot_rects = [Rectangle(SCREEN_CENTER[0] - 400, (SCREEN_CENTER[1] - 195) + 180 * i, 800, 120) for i in range(0, 3)]
+                self.save_slot_rects = [Rectangle(SCREEN_CENTER[0] - 400, (SCREEN_CENTER[1] - 195) + 160 * i, 800, 120) for i in range(0, 3)]
             case "Settings":
                 buttons = ["Audio", "Controls", "Save & Quit"] if self.game.state != 'title' else ["Audio", "Controls", "Back"]
                 start_pos = SCREEN_CENTER[1] - 95
@@ -55,7 +55,8 @@ class MenuTab:
                 self.static_texts.append(self.game.save_and_quit_prompt)
                 for text in enumerate(["Quit", "No"]):
                     self.clickable_entities.append(ClickableText(game, text[1], game.fonts['settings_tab_clickable_text'], FONT_SIZES['settings_tab_clickable_text'], 0, ((SCREEN_CENTER[0] - 200) + text[0] * 400, SCREEN_CENTER[1] + 200), COLORS['pause_menu_button'], COLORS['pause_menu_button_hovered'], COLORS['pause_menu_button_shadow']))
-        
+            case "Inventory":
+                self.slot_item_name_rects = [(item, Rectangle(130 + i * 110, 200, 80, 130)) for i, item in enumerate(self.game.level.player.inventory.slot_items)]
         self.menu_heading_size = measure_text_ex(self.game.fonts['menu_heading'], self.menu_name, FONT_SIZES['menu_heading'], 0)
 
     @property
@@ -64,6 +65,8 @@ class MenuTab:
             return len(self.clickable_entities)
         if hasattr(self, 'save_slot_rects'):
             return len(self.save_slot_rects)
+        if hasattr(self, 'slot_item_name_rects'):
+            return len(self.slot_item_name_rects)
         return 0
 
     def navigate(self, direction: str) -> bool:
@@ -128,9 +131,10 @@ class MenuTab:
     def confirm(self) -> None:
         if self.menu_name == "Play" and self.hover_id != -1:
             self.game.play_sfx('menu_button_pressed')
-            self.game.current_save_slot = self.hover_id + 1
-            self.game.swipe_to_black_timer.activate()
-            self.game.requested_state = 'play'
+            if  not self.game.waiting_for_confirm_deletion:
+                self.game.current_save_slot = self.hover_id + 1
+                self.game.swipe_to_black_timer.activate()
+                self.game.requested_state = 'play'
         elif self.clickable_entities:
             for entity in self.clickable_entities:
                 entity.clicked = entity.hovered
@@ -222,6 +226,25 @@ class MenuTab:
             volume_sync_x = int(line_start_x + (self.game.master_volume * line_length))
             draw_rectangle(volume_sync_x - 5, 360 - 15, 10, 30, COLORS['master_volume_line'])
 
+        if hasattr(self, 'slot_item_name_rects'):
+            # item_slots
+            for i, name_and_rect in enumerate(self.slot_item_name_rects):
+                is_hovered = (self.hover_id == i)
+                rounding = 0.2
+                item = name_and_rect[0]
+                rect = name_and_rect[1]
+                scale = 1.5
+                slot_number = '1' if item == self.game.level.player.slot_1_item else '2' if  item == self.game.level.player.slot_2_item else ''
+                draw_text_ex(self.game.fonts['item_slot_number'], slot_number, Vector2(rect.x + rect.width / 2 - 11, rect.y - 29), FONT_SIZES['item_slot_number'], 0, COLORS['item_slot_number'])
+                draw_rectangle_rounded(rect, rounding, 1, COLORS['item_slot_bg'])
+                draw_rectangle_rounded_lines_ex(rect, rounding, 1, 3, COLORS['item_slot_outline' if not is_hovered else 'item_slot_outline_hovered'])
+                draw_texture_ex(self.game.slot_item_images[item], Vector2(rect.x + rect.width / 2 - self.game.slot_item_images[item].width / 2 * scale, rect.y + rect.height / 2 - self.game.slot_item_images[item].height / 2 * scale), 0, scale, WHITE)
+
+            # item counts
+            draw_texture(self.game.collectibles_images['shell'], SCREEN_WIDTH - 210, 150, BLUE)
+            draw_text_ex(self.game.fonts['shell_count'], F" X{self.game.level.player.inventory.item_counts['shells']:02d}", Vector2(SCREEN_WIDTH - 168, 162), FONT_SIZES['shell_count'], 0, COLORS['shell_count_shadow'])
+            draw_text_ex(self.game.fonts['shell_count'], F" X{self.game.level.player.inventory.item_counts['shells']:02d}", Vector2(SCREEN_WIDTH - 170, 160), FONT_SIZES['shell_count'], 0, COLORS['shell_count'])
+
         if self.menu_name == "Play":
             for i, rect in enumerate(self.save_slot_rects):
                 is_hovered = (self.hover_id == i)
@@ -239,7 +262,6 @@ class MenuTab:
                     draw_text_ex(self.game.fonts['save_slot_info'], F"Last saved: {summary['last_saved']}", Vector2(rect.x + 20, rect.y + 85), FONT_SIZES['save_slot_info'], 0, COLORS['save_slot_info'])
                     draw_text_ex(self.game.fonts['save_slot_info'], F"Current Location: {summary['current_map']}", Vector2(rect.x + 400, rect.y + 85), FONT_SIZES['save_slot_info'], 0, COLORS['save_slot_main_info'])
                     remaining_heart_health = summary['player_current_health']
-                    start_pos = SCREEN_CENTER[1] - 180
                     gap = 25
                     for j in range(0, (int(summary['player_max_health']) // 4)):
                         if remaining_heart_health >= 4:
@@ -254,10 +276,12 @@ class MenuTab:
                             heart_texture = 'empty_heart'
                         texture = self.game.ui_images[heart_texture] 
                         
-                        draw_texture_ex(texture, Vector2(int(640 + gap * (j % 10)), (start_pos if j < 10 else start_pos + gap) + i * 180), 0, 0.6, WHITE)
+                        draw_texture_ex(texture, Vector2(int(rect.x + rect.width/2 + gap * (j % 10)), (rect.y + 15 if j < 10 else rect.y + 15 + gap)), 0, 0.6, WHITE)
                         remaining_heart_health -= 4
                 else:
                     draw_text_ex(self.game.fonts['save_slot_new_game'], "--- NEW GAME ---", Vector2(rect.x + 176, rect.y + 40), FONT_SIZES['save_slot_new_game'], 0, COLORS['save_slot_new_game'])
+
+            self.game.save_slot_note.draw() if not self.game.waiting_for_confirm_deletion else self.game.save_slot_deletion.draw()
 
         for text in self.static_texts:
             text.draw()

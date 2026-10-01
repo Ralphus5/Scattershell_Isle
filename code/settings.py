@@ -22,7 +22,6 @@ ENTITY_DATA: dict[str, dict[str, int|float]] = {
     'raccoon': {'max_health': 100, 'speed': 110, 'damage': 2, 'attack_cooldown': 0.4, 'knockback': 1, 'knockback_speed': 130, 'hitbox_offset_v': 70, 'hitbox_offset_h': 60, 'attack_speed': 200, 'notice_radius': 450, 'attack_radius': 160},
 }
 
-
 HURT_TIMES: dict[str, float] = {
     'Player': 1.2,
     'Enemy': ENTITY_DATA['player']['attack_cooldown']
@@ -32,6 +31,9 @@ KNOCKBACK_TIMES: dict[str, float] = {
     'Player': 0.05,
     'Enemy': 0.15
 }
+
+SHELL_FROM_ENEMY_PROBABILITY: Annotated[float, (0-1)] = 0.2
+HEART_FROM_GRASS_PROBABILITY: Annotated[float, (0-1)] = 0.4
 
 # --- GRAPHICS ---
 COLORS: dict[str, Color] = {
@@ -66,6 +68,13 @@ COLORS: dict[str, Color] = {
     'master_volume_line': BLACK,
     'keyboard_bindings_note': Color(10, 70, 255, 255),
     'keyboard_bindings_prompt': PURPLE,
+    'shell_count': BLUE,
+    'shell_count_shadow': BLACK,
+    'item_slot_bg': GRAY,
+    'item_slot_outline': BLACK,
+    'item_slot_number': BLACK,
+    'item_slot_outline_hovered': RED,
+    'save_slot_note': Color(10, 70, 255, 255),
 }
 
 # Animations
@@ -100,7 +109,10 @@ FONT_SIZES: dict[str, int] = {
     'keyboard_bindings_note': 40,
     'save_slot_title': 30,
     'save_slot_info': 26,
-    'save_slot_new_game': 45
+    'save_slot_new_game': 45,
+    'item_slot_number': 35,
+    'shell_count': 35,
+    'save_slot_note': 40,
 }
 
 MENU_BUTTON_HOVER_SIZE_INCREASE: int = 7
@@ -116,7 +128,7 @@ MUSIC_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
     'cave': 1.0,
 }
 
-SFX_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
+SFX_VOLUMES: dict[str, Annotated[float, (0.0-100.0)]] = {
     'loading_finished': 1.0,
     'transition': 1.0,
     'sword': 1.0,
@@ -130,6 +142,7 @@ SFX_VOLUMES: dict[str, Annotated[float, (0.0-1.0)]] = {
     'heart_collect': 1.0,
     'low_health': 0.6,
     'game_over': 1.0,
+    'shell_collect': 4.0,
 }
 
 # pitch variations
@@ -141,7 +154,12 @@ PITCH_VARIATION_GRASS_CUT: float = 0.2
 # --- INPUT ---
 KEY_TO_NAME: dict[int, str] = {val: var_name.replace('KEY_', '').replace("_", " ").title() 
                                for var_name, val in list(globals().items())
-                               if var_name.startswith('KEY_') and isinstance(val, int)}# key to string conversion
+                               if var_name.startswith('KEY_') and isinstance(val, int)} # key to string conversion
+
+BUTTON_TO_NAME: dict[int, str] = {val: var_name.replace('GAMEPAD_BUTTON_', '').replace("_", " ").title() 
+                               for var_name, val in list(globals().items())
+                               if var_name.startswith('GAMEPAD_BUTTON_') and isinstance(val, int)} # button to string conversion
+
 
 DEFAULT_KEYBOARD_BINDINGS: dict[str, int] = {
                             'move_left': KEY_A,
@@ -160,10 +178,11 @@ DEFAULT_KEYBOARD_BINDINGS: dict[str, int] = {
                             'switch_menu_tab_left': KEY_Q, # non-remappable
                             'confirm': KEY_ENTER, # non-remappable
                             'menu_back': KEY_ESCAPE, # non-remappable
+                            'delete_save': KEY_BACKSPACE, # non_remappable
                             'fullscreen': KEY_F11} # keyboard only
 
 REMAPPABLE_ACTIONS: Set[str] = {'move_left', 'move_right', 'move_up', 'move_down', 'item_slot_1', 'item_slot_2', 'open_inventory', 'open_map'}
-NON_REMAPPABLE_KEYS: Set[int] = {DEFAULT_KEYBOARD_BINDINGS['fullscreen'], KEY_RIGHT_SUPER, KEY_LEFT_SUPER}
+NON_REMAPPABLE_KEYS: Set[int] = {DEFAULT_KEYBOARD_BINDINGS['fullscreen'], KEY_RIGHT_SUPER, KEY_LEFT_SUPER, DEFAULT_KEYBOARD_BINDINGS['delete_save']}
 NON_MAPPABLE_KEYS_TO_PAUSE: Set[int] = {DEFAULT_KEYBOARD_BINDINGS[key] for key in ('fullscreen', 'menu_move_left', 'menu_move_right', 'menu_move_up', 'menu_move_down', 'switch_menu_tab_right', 'switch_menu_tab_left')}
 
 CONTROLLER_BINDINGS: dict[str, int] = {
@@ -182,6 +201,7 @@ CONTROLLER_BINDINGS: dict[str, int] = {
                             'menu_move_up': GAMEPAD_BUTTON_LEFT_FACE_UP,
                             'menu_move_down': GAMEPAD_BUTTON_LEFT_FACE_DOWN,                            
                             'confirm': GAMEPAD_BUTTON_RIGHT_FACE_RIGHT,
-                            'menu_back': GAMEPAD_BUTTON_RIGHT_FACE_DOWN}
+                            'menu_back': GAMEPAD_BUTTON_RIGHT_FACE_DOWN,
+                            'delete_save': GAMEPAD_BUTTON_RIGHT_FACE_UP,}
 
 CONTROLLER_DEAD_ZONE: Annotated[float, (0.0-1.0)] = 0.25

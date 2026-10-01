@@ -4,12 +4,15 @@ from enemy import *
 class Player(Entity):
     def __init__(self, game: Game, pos: Vector2, textures: list[Texture]) -> None:
         super().__init__(game, 'player', pos, textures)
-        self.sword = None
+        self.inventory = Inventory(self.game)
+        self.slot_1_item: Optional[str] = self.game.last_saved_slot_1_item
+        self.slot_2_item: Optional[str] = self.game.last_saved_slot_2_item
+        self.weapon: Optional[SlotItem] = None
         # animation
         self.animation_state = 'down'
         self.facing_direction = 'down'
         # timers
-        self.attack_cooldown_timer.original_callback = self.destroy_weapon
+        self.attack_cooldown_timer.original_callback = self.destroy_slot_item
         self.low_health_sfx_timer = Timer(self.game, LOW_HEALTH_SFX_RETRIGGER_DURATION, True, False, False)
         self.timers.append(self.low_health_sfx_timer)
         self.max_health = self.game.last_saved_player_max_health
@@ -51,15 +54,20 @@ class Player(Entity):
     def attack(self) -> None:
         if self.knockback_timer.active or self.game.fade_to_black_timer.active or self.game.fade_from_black_timer.active:
             return
-        if self.game.input_pressed('item_slot_1')and not self.attack_cooldown_timer.active:
+        if self.game.input_pressed('item_slot_1') and not self.attack_cooldown_timer.active and self.slot_1_item:
             self.animation_index = 0.0
-            self.create_weapon()
+            self.create_slot_item(self.slot_1_item)
+            self.attack_cooldown_timer.activate()
+        elif self.game.input_pressed('item_slot_2') and not self.attack_cooldown_timer.active and self.slot_2_item:
+            self.animation_index = 0.0
+            self.create_slot_item(self.slot_2_item)
             self.attack_cooldown_timer.activate()
 
-    def create_weapon(self) -> None:
-        self.sword = Sword(self.game, 'sword')
-        texture = self.game.sword_images[self.facing_direction]
-        self.game.level.sprites.append(self.sword)
+    def create_slot_item(self, slot_item: str) -> None:
+        match slot_item:
+            case 'sword': self.weapon = Sword(self.game)
+        assert self.weapon
+        self.game.level.sprites.append(self.weapon)
 
     def update_appearance(self, dt: float) -> None:
         # --- Construct state key ---
@@ -77,7 +85,14 @@ class Player(Entity):
         self.animation_index += PLAYER_ANIMATION_SPEED * self.speed * dt
         super().update_appearance(dt)
 
-    def destroy_weapon(self) -> None:
-        if self.sword and self.sword in self.game.level.sprites:
-            self.game.level.sprites.remove(self.sword)
-            self.sword = None
+    def destroy_slot_item(self) -> None:
+        if self.weapon and self.weapon in self.game.level.sprites:
+            self.game.level.sprites.remove(self.weapon)
+            self.weapon = None
+
+class Inventory:
+    def __init__(self, game: Game) -> None:
+        self.game = game
+        self.slot_items: Set[str] = set(self.game.last_saved_slot_items) if self.game.last_saved_slot_items else set()
+
+        self.item_counts: dict[str, int] = self.game.last_saved_item_counts

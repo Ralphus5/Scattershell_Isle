@@ -1,5 +1,6 @@
 from utils import *
 from enemy import Enemy
+from sprites import CollectibleItem
 
 class Debug:
     def __init__(self, game: Game) -> None:
@@ -181,7 +182,7 @@ class Debug:
             for collision_box in self.game.level.collision_boxes:
                 draw_rectangle_lines_ex(collision_box, 3, DARKGRAY)        
             for sprite in self.game.level.sprites:
-                color = BLUE if sprite.hitbox in self.game.level.collision_boxes else RED if not sprite.obj_name == 'healing_heart' else GREEN
+                color = BLUE if sprite.hitbox in self.game.level.collision_boxes else RED if not isinstance(sprite, CollectibleItem) else GREEN
                 if sprite.hitbox:
                     draw_rectangle_lines_ex(sprite.hitbox, 3, color)
             for zone in self.game.level.zones:

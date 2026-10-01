@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="64" tileheight="64" infinite="0" nextlayerid="9" nextobjectid="119">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="64" tileheight="64" infinite="0" nextlayerid="10" nextobjectid="120">
  <editorsettings>
   <export target="../../assets/graphics/maps/testMap.csv" format="csv"/>
  </editorsettings>
@@ -217,6 +217,11 @@
   <object id="109" name="rock1" type="tile" gid="67" x="896" y="1792" width="64" height="64"/>
   <object id="110" name="rock1" type="tile" gid="67" x="896" y="1792" width="64" height="64"/>
   <object id="111" name="rock1" type="tile" gid="67" x="1024" y="1792" width="64" height="64"/>
+ </objectgroup>
+ <objectgroup id="9" name="markers" visible="0">
+  <object id="119" name="sword" type="marker" x="1088" y="832" visible="0">
+   <point/>
+  </object>
  </objectgroup>
  <objectgroup id="5" name="collision_shapes" visible="0">
   <object id="15" name="collsion_box" type="collision" x="1920" y="2.66663" width="61.3333" height="1964" visible="0"/>

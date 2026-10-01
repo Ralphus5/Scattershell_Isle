@@ -84,9 +84,9 @@ class Entity(Sprite):
                 self.game.pause_music()
                 self.game.play_sfx('game_over')
                 self.game.swipe_to_black_timer.activate(DEATH_SWITPE_TO_BLACK_DURATION)
-                if self.game.level.player.sword and self.game.level.player.sword in self.game.level.sprites:
-                    self.game.level.sprites.remove(self.game.level.player.sword)
-                    self.game.level.player.sword = None
+                if self.game.level.player.weapon and self.game.level.player.weapon in self.game.level.sprites:
+                    self.game.level.sprites.remove(self.game.level.player.weapon)
+                    self.game.level.player.weapon = None
                 self.game.requested_state = 'game_over'
 
     def hurt(self, damage: int, knock_back_directon: Vector2) -> None:
@@ -149,12 +149,11 @@ class Tile(Sprite):
         
         self.hitbox = inflate_rect(Rectangle(self.pos.x, hitbox_y, self.texture.width, hitbox_h), 0, -self.texture.height/5)
 
-class Sword(Sprite):
+class SlotItem(Sprite):
     def __init__(self, game: Game, obj_name: str) -> None:
         super().__init__(game, obj_name, Vector2(0,0), game.sword_images[game.level.player.facing_direction])
         self.player = game.level.player
         self.align_to_player()
-        self.game.play_sfx(self.obj_name, PITCH_VARIATION_SWORD)
 
     def align_to_player(self) -> None:
         direction = self.player.facing_direction
@@ -173,16 +172,43 @@ class Sword(Sprite):
     def update(self, dt: float) -> None:
         self.align_to_player()
 
-class HealingHeart(Sprite):
+class Sword(SlotItem):
+    def __init__(self, game: Game) -> None:
+        super().__init__(game, 'sword')
+        self.game.play_sfx(self.obj_name, PITCH_VARIATION_SWORD)
+
+class CollectibleItem(Sprite):
     def __init__(self, game: Game, obj_name: str, pos: Vector2, texture: Texture) -> None:
         super().__init__(game, obj_name, pos, texture)
         self.set_position(vector2_add(self.pos, vector2_subtract(self.pos, self.center)))
+
+    def apply_item_effect(self) -> None:
+        pass
+
+class HealingHeart(CollectibleItem):
+    def __init__(self, game: Game, obj_name: str, pos: Vector2, texture: Texture) -> None:
+        super().__init__(game, obj_name, pos, texture)
 
     def apply_item_effect(self) -> None:
         self.game.play_sfx('heart_collect')
         self.game.level.player.health += 4
         if self.game.level.player.health >= self.game.level.player.max_health:
             self.game.level.player.health = self.game.level.player.max_health
+
+class Shell(CollectibleItem):
+    def __init__(self, game: Game, obj_name: str, pos: Vector2, texture: Texture) -> None:
+        super().__init__(game, obj_name, pos, texture)
+
+    def apply_item_effect(self) -> None:
+        self.game.play_sfx('shell_collect')
+        self.game.level.player.inventory.item_counts['shells'] += 1
+
+class CollectibleSword(CollectibleItem):
+    def __init__(self, game: Game, obj_name: str, pos: Vector2, texture: Texture) -> None:
+        super().__init__(game, obj_name, pos, texture)
+
+    def apply_item_effect(self) -> None:
+        self.game.level.player.inventory.slot_items.add('sword')
 
 class Zone():
     def __init__(self, obj_name: str, shape_name: str, player_pos: str, pos: Vector2, width: int, height: int) -> None:
@@ -212,10 +238,10 @@ class AnimationPlayer:
 
     def create_death_animation(self, animation_type: str, pos: Vector2|tuple[float, float]) -> None:
         animation_frames = self.game.death_animations_images[animation_type]
-        AnimatedEffect(self.game, DEATH_ANIMATION_SPEED, self.game.level.sprites, animation_type, pos, animation_frames)
+        AnimatedEffect(self.game, DEATH_ANIMATION_SPEED, self.game.level.sprites, animation_type, pos, animation_frames, is_death_anim=True)
 
 class AnimatedEffect(Sprite):
-    def __init__(self, game: Game, animation_speed: float, group: list[AnimatedEffect|Sprite]|list[AnimatedEffect], obj_name: str, pos: Vector2|tuple[float, float], textures: list[Texture], flip_x: bool = False) -> None:
+    def __init__(self, game: Game, animation_speed: float, group: list[AnimatedEffect|Sprite]|list[AnimatedEffect], obj_name: str, pos: Vector2|tuple[float, float], textures: list[Texture], flip_x: bool = False, is_death_anim: bool = False) -> None:
         super().__init__(game, obj_name, Vector2(pos[0], pos[1]) if isinstance(pos, tuple) else pos, textures[0])
         self.animation_speed = animation_speed
         self.group = group
@@ -224,6 +250,7 @@ class AnimatedEffect(Sprite):
         self.animation_frames = textures
         self.animation_index: float = 0.0
         self.flip_x = flip_x
+        self.is_death_anim = is_death_anim
 
     def draw(self) -> None:
         w, h = self.texture.width, self.texture.height
@@ -235,5 +262,8 @@ class AnimatedEffect(Sprite):
         self.animation_index += self.animation_speed * dt
         if self.animation_index >= len(self.animation_frames):
             self.group.remove(self)
+            if self.obj_name in ['raccoon', 'spirit', 'bamboo', 'squid'] and self.is_death_anim:
+                if uniform(0, 1) <= SHELL_FROM_ENEMY_PROBABILITY:
+                    self.game.level.sprites.append(Shell(self.game, 'shell', self.center, self.game.collectibles_images['shell']))
         else:
             self.texture = self.animation_frames[int(self.animation_index)]

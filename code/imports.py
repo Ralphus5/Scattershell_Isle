@@ -3,7 +3,7 @@ where objects are prefixed. For datetime, one should mind, that it contains date
 In addition, every module is imported for auto-completion look-ups."""
 
 import pyray
-from pyray import (Image, Texture, Vector2, Color, WHITE, BLACK, RED, GRAY, RAYWHITE, PURPLE, DARKPURPLE, DARKGRAY, LIGHTGRAY, BLUE, GREEN,
+from pyray import (Image, Texture, Vector2, Color, WHITE, BLACK, RED, GRAY, RAYWHITE, PURPLE, DARKPURPLE, DARKGRAY, LIGHTGRAY, BLUE, GREEN, YELLOW,
                    Rectangle, Font, Sound, Music, Camera2D, draw_texture_ex, draw_line, draw_text_ex, draw_rectangle_lines, draw_rectangle_rec, 
                    begin_texture_mode, end_texture_mode, begin_drawing, end_drawing, begin_mode_2d, end_mode_2d, load_texture, 
                    set_music_volume, measure_text_ex, draw_texture_pro, vector2_add, vector2_subtract, vector2_length, 
@@ -18,7 +18,8 @@ from pyray import (Image, Texture, Vector2, Color, WHITE, BLACK, RED, GRAY, RAYW
                    draw_circle_lines_v, gui_check_box, gui_button, set_mouse_offset, set_mouse_scale, is_mouse_button_pressed, check_collision_point_rec,
                    is_mouse_button_released, get_mouse_position, gui_slider, gui_window_box, gui_group_box, gui_label, get_font_default, get_fps,
                    gui_combo_box, load_shader, get_shader_location, set_shader_value, begin_shader_mode, end_shader_mode, set_shader_value_v,
-                   set_shader_value_texture, begin_blend_mode, get_world_to_screen_2d, draw_circle_gradient, end_blend_mode, draw_texture_rec) 
+                   set_shader_value_texture, begin_blend_mode, get_world_to_screen_2d, draw_circle_gradient, end_blend_mode, draw_texture_rec,
+                   draw_rectangle_rounded_lines_ex, draw_rectangle_rounded, load_texture_from_image) 
 import pytmx
 from pytmx import TiledMap
 import pymunk

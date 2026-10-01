@@ -1,14 +1,24 @@
 {
   "summary": {
-    "current_map": "start_area",
-    "play_time": 690.0976968221366,
-    "last_saved": "2026-09-29 16:43",
+    "current_map": "cave",
+    "play_time": 46.437163745984435,
+    "last_saved": "2026-10-01 09:48",
     "player_max_health": 12,
     "player_current_health": 12
   },
   "game_data": {
-    "current_map": "start_area",
+    "current_map": "cave",
     "player_max_health": 12,
-    "player_current_health": 12
+    "player_current_health": 12,
+    "slot_items": [
+      "sword"
+    ],
+    "slot_1_item": "sword",
+    "slot_2_item": null,
+    "item_counts": {
+      "shells": 4,
+      "bombs": 0,
+      "arrows": 0
+    }
   }
 }

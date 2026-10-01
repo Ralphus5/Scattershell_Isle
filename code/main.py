@@ -79,14 +79,38 @@ class Game:
 
             # Directional Navigation
             for direction in ('up', 'down', 'left', 'right'):
-                if self.input_pressed(f'menu_move_{direction}'):
+                if self.input_pressed(f'menu_move_{direction}') and not self.waiting_for_confirm_deletion:
                     if self.current_menu_tab.navigate(direction):
                         self.play_sfx('menu_button_hovered')
                     break
 
             # Confirm selection
-            if self.input_pressed('confirm'):
+            if self.input_pressed('confirm') and self.current_menu_tab.menu_name != "Inventory":
                 self.current_menu_tab.confirm()
+
+            # Assign Item Slots
+            if self.current_menu_tab.menu_name == "Inventory" and self.current_menu_tab.hover_id != -1:
+                if self.input_pressed('item_slot_1'):
+                    self.play_sfx('menu_button_pressed')
+                    if self.current_menu_tab.slot_item_name_rects[self.current_menu_tab.hover_id][0] == self.level.player.slot_2_item:
+                        self.level.player.slot_2_item = self.level.player.slot_1_item
+                    self.level.player.slot_1_item = self.current_menu_tab.slot_item_name_rects[self.current_menu_tab.hover_id][0]
+                elif self.input_pressed('item_slot_2'):
+                    self.play_sfx('menu_button_pressed')
+                    if self.current_menu_tab.slot_item_name_rects[self.current_menu_tab.hover_id][0] == self.level.player.slot_1_item:
+                        self.level.player.slot_1_item = self.level.player.slot_2_item
+                    self.level.player.slot_2_item = self.current_menu_tab.slot_item_name_rects[self.current_menu_tab.hover_id][0]
+
+            # Save Slot Deletion
+            if self.current_menu_tab.menu_name == "Play":
+                if self.input_pressed('delete_save') and self.current_menu_tab.hover_id != -1 and not self.waiting_for_confirm_deletion:
+                    self.waiting_for_confirm_deletion = True
+                if self.waiting_for_confirm_deletion and self.input_pressed('confirm'):
+                    self.waiting_for_confirm_deletion = False
+                    save_file(self.SAVE_FILES[self.current_menu_tab.hover_id + 1], {"summary": {}, "game_data": {}}, f'Deleting Save Slot {self.current_menu_tab.hover_id + 1}')
+                    self.load_save_summaries()
+
+            
 
             # Main Pause Tab Switching
             if self.state == 'pause' and self.current_menu_tab.menu_name in self.pause_menu_tab_names:
@@ -102,10 +126,12 @@ class Game:
             # Back Navigation
             if self.input_pressed('open_inventory') or self.input_pressed('open_map') or self.input_pressed('menu_back'):
                 if self.state == 'title':
-                    self.current_menu_tab = MenuTab(self, "Title" if self.current_menu_tab.menu_name not in ("Controls", "Audio") else "Settings")
+                    if self.waiting_for_confirm_deletion: self.waiting_for_confirm_deletion = False
+                    else: self.current_menu_tab = MenuTab(self, "Title" if self.current_menu_tab.menu_name not in ("Controls", "Audio") else "Settings")
                 elif self.state == 'pause':
                     if self.current_menu_tab.menu_name in self.pause_menu_tab_names:
-                        self.requested_state = 'play'
+                        if not (self.current_menu_tab.menu_name == "Inventory" and is_gamepad_button_pressed(0, CONTROLLER_BINDINGS['menu_back'])):
+                            self.requested_state = 'play'
                     else:
                         if self.current_menu_tab.menu_name == "Audio" and self.current_track:
                             set_music_volume(self.current_track, MUSIC_VOLUMES[cast(str, self.current_key)] * self.master_volume * MUSIC_PAUSE_DIM_FACTOR)
@@ -359,6 +385,7 @@ class Game:
         self.current_pause_menu_tab_id: int = 0 # 0 = map, 1 = inventory, 2 = settings
         self.pause_menu_tab_names: list[str] = ["Map", "Inventory", "Settings"]
         self.current_menu_tab: Optional[MenuTab] = None
+        self.waiting_for_confirm_deletion = False
         # --- Input ---
         self.input_cooldown_timer = Timer(self, INPUT_COOLDOWN_AFTER_SWITCHING_GAME_MODE, False, False, False)
         self.timers.append(self.input_cooldown_timer)
@@ -416,9 +443,14 @@ class Game:
         yield
 
     def import_graphics(self) -> Generator:
-        self.item_images: dict[str, Texture] = {}
-        for image in ['healing_heart']:
-            self.item_images[image] = load_texture(join(self.GRAPHICS_DIR, 'items', f'{image}.png'))
+        self.collectibles_images: dict[str, Texture] = {}
+        for image in ['healing_heart', 'shell']:
+            self.collectibles_images[image] = load_texture(join(self.GRAPHICS_DIR, 'items', 'collectibles', f'{image}.png'))
+            yield
+
+        self.slot_item_images: dict[str, Texture] = {}  
+        for image in ['sword']:
+            self.slot_item_images[image] = load_texture(join(self.GRAPHICS_DIR, 'items', 'slot_items', f'{image}.png'))
             yield
 
         self.sword_images: dict[str, Texture] = {}
@@ -427,7 +459,7 @@ class Game:
             yield
 
         self.ui_images: dict[str, Texture] = {}
-        for image in ['title_background', 'sword', 'menu_card', 'empty_heart', 'quarter_heart', 'half_heart', 'three_quarters_heart', 'full_heart']:
+        for image in ['title_background', 'menu_card', 'empty_heart', 'quarter_heart', 'half_heart', 'three_quarters_heart', 'full_heart']:
             self.ui_images[image] = load_texture(join(self.GRAPHICS_DIR, 'ui', f'{image}.png'))
             yield
         
@@ -473,10 +505,10 @@ class Game:
                 yield 
 
         self.fonts: dict[str, Font] = {}
-        for font in ['title', 'game_over', 'title_menu_clickable_text', 'menu_heading', 'settings_tab_clickable_text', 'master_volume', 'save_slot_title', 'save_slot_new_game']:
+        for font in ['title', 'game_over', 'title_menu_clickable_text', 'menu_heading', 'settings_tab_clickable_text', 'master_volume', 'save_slot_title', 'save_slot_new_game', 'item_slot_number', 'shell_count']:
             self.fonts[font] = load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES[font], ffi.NULL, 0)
             yield
-        for font in ['game_over_hint', 'save_and_quit_prompt', 'keyboard_bindings_note', 'keyboard_bindings_prompt', 'save_slot_info']:
+        for font in ['game_over_hint', 'save_and_quit_prompt', 'keyboard_bindings_note', 'keyboard_bindings_prompt', 'save_slot_info', 'save_slot_note']:
             self.fonts[font] = load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES[font], ffi.NULL, 0)
             yield
 
@@ -498,7 +530,7 @@ class Game:
         for map in ['start_area', 'cave', 'cave2']:
             self.maps[map] = TiledMap(join(self.DATA_DIR, 'maps', f'{map}.tmx'))
             yield
-
+   
     def init_main_menu_texts(self) -> None:
         self.title_text = RegularText(self, GAME_NAME, self.fonts['title'], FONT_SIZES['title'], 0, SCREEN_CENTER, COLORS['title_text'], COLORS['title_text_shadow'])
         self.game_over_text = RegularText(self, "Game Over", self.fonts['game_over'], FONT_SIZES['game_over'], 0, SCREEN_CENTER, COLORS['game_over_text'], COLORS['game_over_text_shadow'])
@@ -507,6 +539,8 @@ class Game:
         self.audio_text = RegularText(self, "-\t\tMaster Volume\t\t+", self.fonts['master_volume'], FONT_SIZES['master_volume'], 0, (SCREEN_CENTER[0], SCREEN_CENTER[1] - 100), COLORS['pause_menu_button'], COLORS['pause_menu_button_shadow'])
         self.keyboard_bindings_note = RegularText(self, "Keyboard only!", self.fonts['keyboard_bindings_note'], FONT_SIZES['keyboard_bindings_note'], 0, (SCREEN_WIDTH - 175, SCREEN_HEIGHT - 65), COLORS['keyboard_bindings_note'])
         self.keyboard_bindings_prompt = RegularText(self, "...", self.fonts['keyboard_bindings_prompt'], FONT_SIZES['keyboard_bindings_prompt'], 0, (SCREEN_CENTER[0], SCREEN_CENTER[1] + 210), COLORS['keyboard_bindings_prompt'])
+        self.save_slot_note = RegularText(self, F"Start: Press {BUTTON_TO_NAME[CONTROLLER_BINDINGS['confirm']] if is_gamepad_available(0) else KEY_TO_NAME[DEFAULT_KEYBOARD_BINDINGS['confirm']]}\t\t\tDelete: Press {BUTTON_TO_NAME[CONTROLLER_BINDINGS['delete_save']] if is_gamepad_available(0) else KEY_TO_NAME[DEFAULT_KEYBOARD_BINDINGS['delete_save']]}", self.fonts['save_slot_note'], FONT_SIZES['save_slot_note'], 0, (SCREEN_CENTER[0], SCREEN_HEIGHT - 80), COLORS['save_slot_note'])
+        self.save_slot_deletion = RegularText(self, F"Cancel: Press {BUTTON_TO_NAME[CONTROLLER_BINDINGS['menu_back']] if is_gamepad_available(0) else KEY_TO_NAME[DEFAULT_KEYBOARD_BINDINGS['menu_back']]}\t\t\tConfirm Deletion: Press {BUTTON_TO_NAME[CONTROLLER_BINDINGS['confirm']] if is_gamepad_available(0) else KEY_TO_NAME[DEFAULT_KEYBOARD_BINDINGS['confirm']]}", self.fonts['save_slot_note'], FONT_SIZES['save_slot_note'], 0, (SCREEN_CENTER[0], SCREEN_HEIGHT - 80), COLORS['save_slot_note'])
 
     def load_settings(self) -> None:
         data = load_file(self.SETTINGS_FILE, "Loading settings")
@@ -631,6 +665,10 @@ class Game:
         self.last_saved_current_map: str = game_data.get('current_map', 'start_area')
         self.last_saved_player_max_health: int = game_data.get('player_max_health', ENTITY_DATA['player']['max_health'])
         self.last_saved_player_current_health: int = game_data.get('player_current_health', ENTITY_DATA['player']['max_health'])
+        self.last_saved_slot_items: list[str] = game_data.get('slot_items', None)
+        self.last_saved_slot_1_item: Optional[str] = game_data.get('slot_1_item', None)
+        self.last_saved_slot_2_item: Optional[str] = game_data.get('slot_2_item', None)
+        self.last_saved_item_counts: dict[str, int] = game_data.get('item_counts', {'shells': 0, 'bombs': 0, 'arrows': 0})
 
     def save_save_data(self, slot_id: int) -> None:
         if not hasattr(self, 'level'):
@@ -656,7 +694,10 @@ class Game:
                 "current_map": self.level.current_map,
                 "player_max_health": self.level.player.max_health,
                 "player_current_health": self.level.player.health if self.level.player.health else self.level.player.max_health,
-                # Add player inventory, position, defeated enemies, etc.
+                "slot_items": list(self.level.player.inventory.slot_items),
+                "slot_1_item": self.level.player.slot_1_item,
+                "slot_2_item": self.level.player.slot_2_item,
+                "item_counts": self.level.player.inventory.item_counts,
             }
         }
 

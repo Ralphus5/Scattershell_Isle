@@ -1,14 +1,4 @@
 {
-  "summary": {
-    "current_map": "start_area",
-    "play_time": 75.40056550316513,
-    "last_saved": "2026-09-29 16:36",
-    "player_max_health": 80,
-    "player_current_health": 68
-  },
-  "game_data": {
-    "current_map": "start_area",
-    "player_max_health": 80,
-    "player_current_health": 68
-  }
+  "summary": {},
+  "game_data": {}
 }
