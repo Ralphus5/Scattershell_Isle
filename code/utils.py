@@ -101,6 +101,41 @@ class ClickableText(RegularText):
         current_color = self.hover_color if self.hovered else self.color
         draw_text_ex(self.font, self.text, self.pos, self.font_size, self.font_spacing, current_color)
 
+class DialogueBox:
+    def __init__(self, game: Game, messages: list[str], callback: Optional[Callable] = None) -> None:
+        self.game = game
+        self.messages = messages
+        self.index = 0
+        self.callback = callback
+        
+        # Panel bounds (bottom portion of screen)
+        self.rect = Rectangle(150, SCREEN_HEIGHT - 250, SCREEN_WIDTH - 300, 210)
+        self.font = game.fonts['regular_dialogue']
+        self.font_size = FONT_SIZES['regular_dialogue']
+
+    def advance(self) -> bool:
+        self.game.play_sfx('dialogue_advance')
+        self.index += 1
+        if self.index >= len(self.messages):
+            if self.callback:
+                self.callback()
+            return True
+        return False
+
+    def draw(self) -> None:
+        # Draw background panel & border
+        draw_rectangle_rec(self.rect, COLORS['dialogue_box_bg'])
+        draw_rectangle_lines_ex(self.rect, 5, COLORS['dialogue_box_outline'])
+
+        # Render message text
+        current_text = self.messages[self.index]
+        text_pos = Vector2(self.rect.x + 30, self.rect.y + 30)
+        draw_text_ex(self.font, current_text, text_pos, self.font_size, 1, COLORS['dialogue_text'])
+
+        # "Click / Press key to continue" indicator
+        prompt_pos = Vector2(self.rect.x + self.rect.width - 270, self.rect.y + self.rect.height - 45)
+        draw_text_ex(self.font, "[Confirm] Continue...", prompt_pos, FONT_SIZES['dialogue_advance_note'], 1, COLORS['dialogue_advance_note'])
+
 @dataclass
 class Circle:
     center: Vector2

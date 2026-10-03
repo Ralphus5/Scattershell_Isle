@@ -75,6 +75,10 @@ COLORS: dict[str, Color] = {
     'item_slot_number': BLACK,
     'item_slot_outline_hovered': RED,
     'save_slot_note': Color(10, 70, 255, 255),
+    'dialogue_box_bg': BLACK,
+    'dialogue_box_outline': DARKGRAY,
+    'dialogue_text': WHITE,
+    'dialogue_advance_note': LIGHTGRAY,
 }
 
 # Animations
@@ -113,6 +117,8 @@ FONT_SIZES: dict[str, int] = {
     'item_slot_number': 35,
     'shell_count': 35,
     'save_slot_note': 40,
+    'regular_dialogue': 50,
+    'dialogue_advance_note': 32,
 }
 
 MENU_BUTTON_HOVER_SIZE_INCREASE: int = 7
@@ -143,6 +149,8 @@ SFX_VOLUMES: dict[str, Annotated[float, (0.0-100.0)]] = {
     'low_health': 0.6,
     'game_over': 1.0,
     'shell_collect': 4.0,
+    'dialogue_advance': 1.0,
+    'sword_jingle': 1.0,
 }
 
 # pitch variations

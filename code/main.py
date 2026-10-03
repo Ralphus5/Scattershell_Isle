@@ -110,8 +110,6 @@ class Game:
                     save_file(self.SAVE_FILES[self.current_menu_tab.hover_id + 1], {"summary": {}, "game_data": {}}, f'Deleting Save Slot {self.current_menu_tab.hover_id + 1}')
                     self.load_save_summaries()
 
-            
-
             # Main Pause Tab Switching
             if self.state == 'pause' and self.current_menu_tab.menu_name in self.pause_menu_tab_names:
                 if self.input_pressed('switch_menu_tab_right'):
@@ -145,16 +143,22 @@ class Game:
                 self.current_menu_tab = MenuTab(self, 'Title')
 
         elif self.state == 'play':
-            if self.input_pressed('open_map') or self.input_pressed('open_inventory') or (self.input_pressed('menu_back') and is_key_pressed(self.keyboard_bindings['menu_back'])):
-                self.play_sfx('pause_menu_opened')
-                self.requested_state = 'pause'
-                if self.input_pressed('open_map'):
-                    self.current_pause_menu_tab_id = 0
-                elif self.input_pressed('open_inventory'):
-                    self.current_pause_menu_tab_id = 1
-                elif self.input_pressed('menu_back'):
-                    self.current_pause_menu_tab_id = 2
-                self.current_menu_tab = MenuTab(self, self.pause_menu_tab_names[self.current_pause_menu_tab_id])
+            if not self.level.active_dialogue:
+                if self.input_pressed('open_map') or self.input_pressed('open_inventory') or (self.input_pressed('menu_back') and is_key_pressed(self.keyboard_bindings['menu_back'])):
+                    self.play_sfx('pause_menu_opened')
+                    self.requested_state = 'pause'
+                    if self.input_pressed('open_map'):
+                        self.current_pause_menu_tab_id = 0
+                    elif self.input_pressed('open_inventory'):
+                        self.current_pause_menu_tab_id = 1
+                    elif self.input_pressed('menu_back'):
+                        self.current_pause_menu_tab_id = 2
+                    self.current_menu_tab = MenuTab(self, self.pause_menu_tab_names[self.current_pause_menu_tab_id])
+
+            elif self.level.active_dialogue:
+                if self.input_pressed('confirm') or self.input_pressed('menu_back'):
+                    if self.level.active_dialogue.advance():
+                        self.level.active_dialogue = None
 
         elif self.state == 'game_over':
             if self.input_pressed('confirm') or self.input_pressed('open_inventory'):
@@ -508,7 +512,7 @@ class Game:
         for font in ['title', 'game_over', 'title_menu_clickable_text', 'menu_heading', 'settings_tab_clickable_text', 'master_volume', 'save_slot_title', 'save_slot_new_game', 'item_slot_number', 'shell_count']:
             self.fonts[font] = load_font_ex(join(self.FONTS_DIR, 'slkscr.ttf'), FONT_SIZES[font], ffi.NULL, 0)
             yield
-        for font in ['game_over_hint', 'save_and_quit_prompt', 'keyboard_bindings_note', 'keyboard_bindings_prompt', 'save_slot_info', 'save_slot_note']:
+        for font in ['game_over_hint', 'save_and_quit_prompt', 'keyboard_bindings_note', 'keyboard_bindings_prompt', 'save_slot_info', 'save_slot_note', 'regular_dialogue']:
             self.fonts[font] = load_font_ex(join(self.FONTS_DIR, 'Pixelbasel.ttf'), FONT_SIZES[font], ffi.NULL, 0)
             yield
 

@@ -4,6 +4,7 @@ from menutab import *
 class Level:
     def __init__(self, game: Game, map: str) -> None:
         self.game = game
+        self.active_dialogue: Optional[DialogueBox] = None
         self.animation_player = AnimationPlayer(game)
         self.player = Player(self.game, Vector2(0,0), self.game.entity_images['player']['down'])
         self.create_map(map, self.game.last_saved_current_map)
@@ -91,11 +92,12 @@ class Level:
 
     def run(self, dt: float) -> None:
         # --- updating ---
-        dt = dt * self.game.debug.game_speed[0]
-        if not any((self.game.fade_to_black_timer.active, self.game.fade_from_black_timer.active)):
-            self.manage_collisions(dt)
-        self.update_sprites(dt)
-        self.set_camera_boundaries()
+        if not self.active_dialogue:
+            dt = dt * self.game.debug.game_speed[0]
+            if not any((self.game.fade_to_black_timer.active, self.game.fade_from_black_timer.active)):
+                self.manage_collisions(dt)
+            self.update_sprites(dt)
+            self.set_camera_boundaries()
 
         # --- drawing ---
         begin_texture_mode(self.game.virtual_screen)
@@ -217,5 +219,7 @@ class Level:
         draw_texture(self.game.collectibles_images['shell'], SCREEN_WIDTH - 160, 20, BLUE)
         draw_text_ex(self.game.fonts['shell_count'], F" X{self.player.inventory.item_counts['shells']:02d}", Vector2(SCREEN_WIDTH - 118, 32), FONT_SIZES['shell_count'], 0, COLORS['shell_count_shadow'])
         draw_text_ex(self.game.fonts['shell_count'], F" X{self.player.inventory.item_counts['shells']:02d}", Vector2(SCREEN_WIDTH - 120, 30), FONT_SIZES['shell_count'], 0, COLORS['shell_count'])
+
+        if self.active_dialogue: self.active_dialogue.draw()
 
         end_texture_mode()

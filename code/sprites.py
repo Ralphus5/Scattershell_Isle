@@ -209,6 +209,14 @@ class CollectibleSword(CollectibleItem):
 
     def apply_item_effect(self) -> None:
         self.game.level.player.inventory.slot_items.add('sword')
+        self.game.play_sfx('sword_jingle')
+        
+        messages = [
+            "You obtained the Sword!",
+            F"Press '{BUTTON_TO_NAME[CONTROLLER_BINDINGS['open_inventory']] if is_gamepad_available(0) else KEY_TO_NAME[DEFAULT_KEYBOARD_BINDINGS['open_inventory']]}' to open\nthe inventory and equip it to an item slot!",
+            "When equipped, press the item slot button\nto use it!"
+        ]
+        self.game.level.active_dialogue = DialogueBox(self.game, messages)
 
 class Zone():
     def __init__(self, obj_name: str, shape_name: str, player_pos: str, pos: Vector2, width: int, height: int) -> None:

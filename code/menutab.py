@@ -70,6 +70,8 @@ class MenuTab:
         return 0
 
     def navigate(self, direction: str) -> bool:
+        if not hasattr(self, 'layout'):
+            return False
         old_hover = self.hover_id
 
         # Special Case: Audio Menu
