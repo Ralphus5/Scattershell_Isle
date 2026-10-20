@@ -11,7 +11,7 @@ class Enemy(Entity):
         self.attack_radius = self.stats['attack_radius']
         self.knockback_timer.callback = self.on_knockback_end
 
-    def on_knockback_end(self) -> None:
+    def on_knockback_end(self) -> None: 
         self.speed = self.stats['speed']
         if self.state == 'attack':
             self.state = 'move'

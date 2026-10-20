@@ -19,10 +19,11 @@ from pyray import (Image, Texture, Vector2, Color, WHITE, BLACK, RED, GRAY, RAYW
                    is_mouse_button_released, get_mouse_position, gui_slider, gui_window_box, gui_group_box, gui_label, get_font_default, get_fps,
                    gui_combo_box, load_shader, get_shader_location, set_shader_value, begin_shader_mode, end_shader_mode, set_shader_value_v,
                    set_shader_value_texture, begin_blend_mode, get_world_to_screen_2d, draw_circle_gradient, end_blend_mode, draw_texture_rec,
-                   draw_rectangle_rounded_lines_ex, draw_rectangle_rounded, load_texture_from_image) 
+                   draw_rectangle_rounded_lines_ex, draw_rectangle_rounded, load_texture_from_image, is_music_stream_playing, is_sound_playing,
+                   vector2_lerp) 
 import pytmx
 from pytmx import TiledMap
-import pymunk
+import pymunk 
 import typing
 from typing import (Annotated, Any, Set, Callable, Optional, Generator, TYPE_CHECKING, cast)
 import math

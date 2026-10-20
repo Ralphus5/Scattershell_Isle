@@ -152,7 +152,7 @@ class Tile(Sprite):
 class SlotItem(Sprite):
     def __init__(self, game: Game, obj_name: str) -> None:
         super().__init__(game, obj_name, Vector2(0,0), game.sword_images[game.level.player.facing_direction])
-        self.player = game.level.player
+        self.player = game.level.player 
         self.align_to_player()
 
     def align_to_player(self) -> None:
@@ -209,7 +209,8 @@ class CollectibleSword(CollectibleItem):
 
     def apply_item_effect(self) -> None:
         self.game.level.player.inventory.slot_items.add('sword')
-        self.game.play_sfx('sword_jingle')
+        
+        self.game.play_jingle('item_collect_jingle')
         
         messages = [
             "You obtained the Sword!",
@@ -217,6 +218,28 @@ class CollectibleSword(CollectibleItem):
             "When equipped, press the item slot button\nto use it!"
         ]
         self.game.level.active_dialogue = DialogueBox(self.game, messages)
+        self.game.level.player.texture = self.game.entity_images['player']['receive'][0]
+
+class CollectedItemDisplay(Sprite):
+    def __init__(self, game: Game, obj_name: str, pos: Vector2, texture: Texture) -> None:
+        super().__init__(game, obj_name, pos, texture)
+        self.creation_time = self.game.play_time
+        self.pos.y -= self.game.level.player.texture.height
+
+    def update(self, dt: float) -> None:
+        if not self.pos.x == self.game.level.player.pos.x + self.game.level.player.texture.width / 2 - self.texture.width/2:
+            self.pos.x = self.game.level.player.pos.x + self.game.level.player.texture.width / 2 - self.texture.width/2
+        self.pos.y -= sin((self.game.play_time - self.creation_time) * 2.5) / 1.5
+        if not self.game.level.active_dialogue:
+            self.game.level.collected_item_display = None
+            self.game.level.sprites.remove(self)
+            self.game.level.player.texture = self.game.entity_images['player']['down_idle'][0]
+            self.game.level.player.animation_state = 'down_idle'
+            self.game.level.player.facing_direction = 'down'
+
+    @property
+    def y_sort_pos(self) -> float:
+        return self.pos.y + self.texture.height + self.game.level.player.y_sort_pos
 
 class Zone():
     def __init__(self, obj_name: str, shape_name: str, player_pos: str, pos: Vector2, width: int, height: int) -> None:

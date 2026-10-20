@@ -172,7 +172,7 @@ class Debug:
                 self.game.level.player.health = int(health_ptr[0])
 
         # Render Info Panel
-        if self.show_debug_infos[0]:
+        if self.show_debug_infos[0]: 
             self.draw_debug_info_panel()
 
         end_texture_mode()

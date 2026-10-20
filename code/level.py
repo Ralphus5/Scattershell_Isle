@@ -5,11 +5,12 @@ class Level:
     def __init__(self, game: Game, map: str) -> None:
         self.game = game
         self.active_dialogue: Optional[DialogueBox] = None
+        self.collected_item_display: Optional[Sprite] = None
         self.animation_player = AnimationPlayer(game)
         self.player = Player(self.game, Vector2(0,0), self.game.entity_images['player']['down'])
         self.create_map(map, self.game.last_saved_current_map)
         self.create_camera()
-        self.set_camera_boundaries()
+        self.set_camera_boundaries() 
 
     def create_map(self, map: str, player_pos: str) -> None:
         self.current_map = map
@@ -98,6 +99,7 @@ class Level:
                 self.manage_collisions(dt)
             self.update_sprites(dt)
             self.set_camera_boundaries()
+        if self.collected_item_display: self.collected_item_display.update(dt)
 
         # --- drawing ---
         begin_texture_mode(self.game.virtual_screen)
@@ -159,6 +161,9 @@ class Level:
                 if player_touched_item:
                     sprite.apply_item_effect()
                     self.sprites.remove(sprite)
+                    if sprite.texture in self.game.slot_item_images.values():
+                        self.collected_item_display = CollectedItemDisplay(self.game, sprite.obj_name, self.player.center, self.game.slot_item_images[sprite.obj_name])
+                        self.sprites.append(self.collected_item_display)
 
     def update_sprites(self, dt: float) -> None:
         for sprite in self.sprites:

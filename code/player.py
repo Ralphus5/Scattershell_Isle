@@ -70,6 +70,8 @@ class Player(Entity):
         self.game.level.sprites.append(self.weapon)
 
     def update_appearance(self, dt: float) -> None:
+        if self.game.level.active_dialogue:
+            return
         # --- Construct state key ---
         base_state = self.facing_direction
 

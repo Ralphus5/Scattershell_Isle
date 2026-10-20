@@ -18,7 +18,7 @@ class Game:
             # --- Setup ---
             dt = get_frame_time()
             scaled_dt = dt * self.debug.game_speed[0] if hasattr(self, 'debug') else dt
-            
+
             self.setup_mouse_scale()
 
             for timer in self.timers:
@@ -29,9 +29,19 @@ class Game:
 
             self.get_general_input()
             self.change_game_mode()
-            if self.current_track: update_music_stream(self.current_track)
+
+            # music and sfx
+            if self.current_track:
+                update_music_stream(self.current_track)
+
+                if self.music_paused_by_jingle and self.current_jingle_key:
+                    if not is_sound_playing(self.sfx[self.current_jingle_key]):
+                        self.resume_music()
+                        self.music_paused_by_jingle = False
+                        self.current_jingle_key = None
+
             self.update_play_time(dt)
-            
+
             # --- Game Mode ---
             if self.state == 'boot':
                 self.boot_screen(dt)
@@ -398,11 +408,13 @@ class Game:
         # --- Audio ---
         self.current_key: Optional[str] = None
         self.current_track: Optional[Music] = None
+        self.current_jingle_key: Optional[str] = None
+        self.music_paused_by_jingle = False
         # --- Saves ---
         self.save_summaries: dict[int, dict | None] = {1: None, 2: None, 3: None}
         self.current_save_slot: Optional[int] = None
         # --- Debug ---
-        self.debug = DummyDebug() if self.is_exe else Debug(self) 
+        self.debug = DummyDebug() if self.is_exe else Debug(self)
 
     def import_game_assets_and_saves(self) -> Generator:
         # --- Save Data ---
@@ -490,6 +502,9 @@ class Game:
                     state: import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'monsters', entity, state)) for state in ['move', 'idle', 'attack']
                 }
             yield
+
+        self.entity_images['player']['receive'] = import_image_folder(join(self.GRAPHICS_DIR, 'entities', 'player', 'receive'))
+        yield
 
         self.attack_animations_images: dict[str, list[Texture]] = {}
         for entity in ['raccoon', 'spirit', 'bamboo', 'squid']:
@@ -636,6 +651,14 @@ class Game:
                     var = get_random_value(-int(pitch_variation * 100), int(pitch_variation * 100)) / 100.0
                     set_sound_pitch(sound, 1.0 + var)
                 play_sound(sound)
+
+    def play_jingle(self, sfx_key: str) -> None:
+        if self.current_track and is_music_stream_playing(self.current_track):
+            self.pause_music()
+            self.music_paused_by_jingle = True
+        
+        self.current_jingle_key = sfx_key
+        self.play_sfx(sfx_key)
 
     def set_volumes(self) -> None:
         # --- music volumes ---

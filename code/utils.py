@@ -120,7 +120,7 @@ class DialogueBox:
             if self.callback:
                 self.callback()
             return True
-        return False
+        return False 
 
     def draw(self) -> None:
         # Draw background panel & border

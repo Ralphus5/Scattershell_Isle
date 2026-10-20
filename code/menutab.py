@@ -15,7 +15,7 @@ class MenuTab:
             case "Play":
                 self.layout = "vertical"
             case "Save & Quit":
-                self.layout = "horizontal"
+                self.layout = "horizontal" 
             case "Controls" | "Inventory":
                 self.layout = "grid"
             case "Audio":
